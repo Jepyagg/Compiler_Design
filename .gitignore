@@ -2,3 +2,5 @@
 lex.yy.c
 *.result
 scanner
+/src/test.sh
+/src/hw1

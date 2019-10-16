@@ -32,32 +32,22 @@ float (0|[1-9][0-9]*)\.(0|[0-9]*[1-9])
 %x C_COMMENT
 %%
 
+    /* Pseudocomments */
+"//&S+".* {Opt_S = 1;LIST;}
+"//&S-".* {Opt_S = 0;LIST;}
+"//&T+".* {Opt_T = 1;LIST;}
+"//&T-".* {Opt_T = 0;LIST;}
 
     /* c style */
 "/*" {LIST;BEGIN C_COMMENT;}
 <C_COMMENT>.  {LIST;}
 <C_COMMENT>"*/" {LIST;BEGIN INITIAL;}
 
-
-"//&S+".* {Opt_S = 1;LIST;}
-"//&S-".* {Opt_S = 0;LIST;}
-"//&T+".* {Opt_T = 1;LIST;}
-"//&T-".* {Opt_T = 0;LIST;}
-
     /* C++ style */
 "//".* {LIST;}
 
-<*>\n      {
-          LIST;
-          if (Opt_S)
-            printf("%d: %s", linenum, buf);
-          linenum++;
-          buf[0] = '\0';
-        }
-
     /* space and tab */
 [\t ]   {LIST;}
-
 
     /* address string */
     /* ignore start and end ( " ) */
@@ -78,61 +68,70 @@ float (0|[1-9][0-9]*)\.(0|[0-9]*[1-9])
 }
 
     /*delimiters*/
-","     {tokenChar(',');}
-";"     {tokenChar(';');}
-":"     {tokenChar(':');}
-"("     {tokenChar('(');}
-")"     {tokenChar(')');}
-"["     {tokenChar('[');}
-"]"     {tokenChar(']');}
+","        {tokenChar(',');}
+";"        {tokenChar(';');}
+":"        {tokenChar(':');}
+"("        {tokenChar('(');}
+")"        {tokenChar(')');}
+"["        {tokenChar('[');}
+"]"        {tokenChar(']');}
 
     /*Arithmetic, Relational, and Logical Operators*/
-"+"     {token(+);}
-"-"     {token(-);}
-"*"     {token(*);}
-"/"     {token(/);}
-"mod"     {token(mod);}
-":="     {token(:=);}
-"<"     {token(<);}
-"<="     {token(<=);}
-"<>"     {token(<>);}
-">="     {token(>=);}
-">"     {token(>);}
-"="     {token(=);}
-"and"     {token(and);}
-"or"     {token(or);} 
-"not"     {token(not);}
+"+"        {token(+);}
+"-"        {token(-);}
+"*"        {token(*);}
+"/"        {token(/);}
+"mod"      {token(mod);}
+":="       {token(:=);}
+"<"        {token(<);}
+"<="       {token(<=);}
+"<>"       {token(<>);}
+">="       {token(>=);}
+">"        {token(>);}
+"="        {token(=);}
+"and"      {token(and);}
+"or"       {token(or);} 
+"not"      {token(not);}
 
     /*keyword*/
-"array" {token(KWarray)}
-"begin" {token(KWbegin)}
-"boolean" {token(KWboolean)}
-"def" {token(KWdef)}
-"do" {token(KWdo)}
-"else" {token(KWelse)}
-"end" {token(KWend)}
-"false" {token(KWfalse)}
-"for" {token(KWfor)}
-"integer" {token(KWinteger)}
-"if" {token(KWif)}
-"of" {token(KWof)}
-"print" {token(KWprint)}
-"read" {token(KWread)}
-"real" {token(KWreal)}
-"string" {token(KWstring)}
-"then" {token(KWthen)}
-"to" {token(KWto)}
-"true" {token(KWtrue)}
-"return" {token(KWreturn)}
-"var" {token(KWvar)}
-"while" {token(KWwhile)}
+"array"    {token(KWarray);}
+"begin"    {token(KWbegin);}
+"boolean"  {token(KWboolean);}
+"def"      {token(KWdef);}
+"do"       {token(KWdo);}
+"else"     {token(KWelse);}
+"end"      {token(KWend);}
+"false"    {token(KWfalse);}
+"for"      {token(KWfor);}
+"integer"  {token(KWinteger);}
+"if"       {token(KWif);}
+"of"       {token(KWof);}
+"print"    {token(KWprint);}
+"read"     {token(KWread);}
+"real"     {token(KWreal);}
+"string"   {token(KWstring);}
+"then"     {token(KWthen);}
+"to"       {token(KWto);}
+"true"     {token(KWtrue);}
+"return"   {token(KWreturn);}
+"var"      {token(KWvar);}
+"while"    {token(KWwhile);}
 
 0|([1-9][0-9]*) {tokenInteger(integer, atoi(yytext));}
-0[0-7]+ {tokenOctInteger(oct_integer, yytext);}
+0[0-7]+  {tokenOctInteger(oct_integer, yytext);}
 
-{letter}({letter}|{digit})* {tokenId(id, yytext);}
-(0|[1-9][0-9]*)\.(0|[0-9]*[1-9]) {tokenFloat(float, yytext);}
-({float}|([1-9][0-9]*))?[eE][+-]?(([1-9][0-9]*)|0) {tokenScientific(scientific, yytext);}
+{letter}({letter}|{digit})*  {tokenId(id, yytext);}
+(0|[1-9][0-9]*)\.(0|[0-9]*[1-9])  {tokenFloat(float, yytext);}
+({float}|([1-9][0-9]*))?[eE][+-]?(([1-9][0-9]*)|0)  {tokenScientific(scientific, yytext);}
+
+    /* \n */
+<*>\n      {
+          LIST;
+          if (Opt_S)
+            printf("%d: %s", linenum, buf);
+          linenum++;
+          buf[0] = '\0';
+        }
 
     /*Unrecognized character*/
 .       {

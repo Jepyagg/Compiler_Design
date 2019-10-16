@@ -53,21 +53,20 @@ float (0|[1-9][0-9]*)\.(0|[0-9]*[1-9])
     /* ignore start and end ( " ) */
 \"([^"]|\"{2})*\"  {LIST;
     int len = yyleng, cnt = 0;
-    char str[len];
-    for(int idx = 0; idx < len;) {
+    char new_str[len];
+    for(int idx = 1; idx < len;) {
         if(yytext[idx] == '\"' && yytext[idx + 1] == '\"') {
             idx++;
         }
-        str[cnt++] = yytext[idx++];
+        new_str[cnt++] = yytext[idx++];
     }
-    str[cnt] = 0;
-    str[strlen(str) - 1] = '\0';
-    char *ans = &str[1];
+    new_str[cnt] = 0;
+    new_str[strlen(new_str) - 1] = '\0';
 
-    tokenString(string, ans);
+    tokenString(string, new_str);
 }
 
-    /*delimiters*/
+    /*Delimiters*/
 ","        {tokenChar(',');}
 ";"        {tokenChar(';');}
 ":"        {tokenChar(':');}

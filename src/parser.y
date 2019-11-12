@@ -14,11 +14,177 @@ extern int yylex(void);
 static void yyerror(const char *msg);
 %}
 
-%token ID
+    /* symbols */
+%token IDENTIFIER TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCIENTIFIC OCTAL TRUE FALSE STRING
+%token END VAR ARRAY OF TO BEG ASSIGN PRINT READ
+%token WHILE DO FOR RETURN DEF
+
+%left NOT
+%left AND
+%left OR
+%left NE GE LE '>' '<' '='
+%left '*' '/' MOD
+%left '+' '-'
+%left NEG
 
 %%
 
-program_name: ID
+    /* program */
+program     : IDENTIFIER ';' programbody END IDENTIFIER
+            ;
+
+programbody     : variables functions compound
+                ;
+
+    /* function */
+functions       : function_declaration
+                | 
+                ;
+
+function_declaration    : function function_declaration
+                        | function
+                        ;
+
+function    : IDENTIFIER '(' arguments ')' ':' TYPE ';' compound END IDENTIFIER
+            | IDENTIFIER '(' arguments ')' ';' compound END IDENTIFIER
+            ;
+
+identifier_list     : multi_identifier
+                    | 
+                    ;
+
+multi_identifier    : multi_identifier ',' IDENTIFIER
+                    | IDENTIFIER
+                    ;
+
+    /* arguments */
+arguments       : identifier_list ':' TYPE ';' arguments
+                | identifier_list ':' TYPE
+                |
+                ;
+
+    /* variable */
+variables       : variable_declaration
+                |
+                ;
+
+variable_declaration    : variable_declaration variable
+                        | variable
+                        ;
+
+variable    : VAR identifier_list ':' TYPE ';'
+            | VAR identifier_list ':' ARRAY INT TO INT OF array_types';'
+            | VAR identifier_list ':' literal_constant ';'
+            ;
+
+array_types     : ARRAY INT TO INT OF array_types
+                | TYPE
+                ;
+
+    /* constant */
+literal_constant    : number
+                    | STRING
+                    | TRUE
+                    | FALSE
+                    ;
+
+number      : INT
+            | OCTAL
+            | SCIENTIFIC
+            | FLOAT
+            ;
+
+    /* statement */
+statements      : nonEmptystatements
+                |
+                ;
+
+nonEmptystatements      : nonEmptystatements statement
+                        | statement
+                        ;
+
+statement       : compound
+                | simple
+                | expression
+                | conditional
+                | while
+                | for
+                | return
+                | function_invocation ';'
+                ;
+
+    /* compound */
+compound    : BEG variables statements END
+            ;
+
+    /* simple */
+simple      : variable_reference ASSIGN expression ';'
+            | PRINT variable_reference ';'
+            | PRINT expression ';'
+            | READ variable_reference ';'
+            ;
+
+variable_reference      : array_reference
+                        | IDENTIFIER
+                        ;
+
+    /* expression */
+expression      : '-' expression %prec NEG
+                | expression '>' expression
+                | expression '<' expression
+                | expression '=' expression
+                | expression LE expression
+                | expression GE expression
+                | expression NE expression
+                | expression AND expression
+                | expression OR  expression
+                | NOT expression %prec NOT
+                | expression '+' expression
+                | expression '-' expression
+                | expression '*' expression
+                | expression '/' expression
+                | expression MOD expression
+                | '(' expression ')' %prec '*'
+                | number
+                | IDENTIFIER
+                | function_invocation
+                | STRING
+                | array_reference
+                ;
+
+array_reference     : IDENTIFIER multi_array_reference
+                    ;
+
+multi_array_reference       : '[' expression ']' multi_array_reference
+                            | '[' expression ']'
+                            ;
+
+function_invocation     : IDENTIFIER '(' expression_list ')'
+                        | IDENTIFIER '(' ')'
+                        ;
+
+expression_list     : expression ',' expression_list
+                    | expression
+                    ;
+
+    /* conditional */
+conditional     : IF expression THEN conditional_body END IF
+                ;
+
+conditional_body    : statements
+                    | statements ELSE statements
+
+    /* while */
+while       : WHILE expression DO statements END DO
+            ;
+
+    /* for */
+for     : FOR IDENTIFIER ASSIGN INT TO INT DO statements END DO
+        ;
+
+    /* return */
+return      : RETURN expression ';'
+            ;
 
 %%
 

@@ -7,8 +7,8 @@ LIBS    = -lfl -ly
 SCANNER = scanner
 PARSER  = parser
 EXEC    = $(PARSER)
-OBJS    = $(SCANNER) \
-	      $(PARSER)
+OBJS    = $(PARSER) \
+	      $(SCANNER)
 
 # Substitution reference
 DEPS := $(OBJS:=.d)
@@ -21,7 +21,7 @@ $(SCANNER).c: %.c: %.l
 	$(LEX) -o $@ $<
 
 $(PARSER).c: %.c: %.y
-	$(YACC) -o $@ -v $<
+	$(YACC) -d -o $@ -v $<
 
 %.o: %.c
 	$(CC) -o $@ $(CFLAGS) -c -MMD $<

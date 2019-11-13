@@ -14,10 +14,14 @@ extern int yylex(void);
 static void yyerror(const char *msg);
 %}
 
-    /* symbols */
-%token IDENTIFIER TYPE MOD LE GE NE NOT AND OR IF THEN ELSE INT FLOAT SCIENTIFIC OCTAL TRUE FALSE STRING
-%token END VAR ARRAY OF TO BEG ASSIGN PRINT READ
-%token WHILE DO FOR RETURN DEF
+    /* operator */
+%token MOD ASSIGN LE NE GE AND OR NOT
+
+    /* keyword */
+%token ARRAY BEG TYPE DEF DO ELSE END FALSE FOR IF OF PRINT READ THEN TO TRUE RETURN VAR WHILE
+
+    /* Identifier */
+%token IDENTIFIER INT FLOAT SCIENTIFIC STRING OCTAL
 
 %left NOT
 %left AND
@@ -58,12 +62,15 @@ multi_identifier    : multi_identifier ',' IDENTIFIER
                     ;
 
     /* arguments */
-arguments       : identifier_list ':' TYPE ';' arguments
-                | identifier_list ':' TYPE
-                | identifier_list ':' ARRAY INT TO INT OF array_types ';' arguments
-                | identifier_list ':' ARRAY INT TO INT OF array_types
-                |
+arguments       : have_arguments
+                | 
                 ;
+
+have_arguments      : identifier_list ':' TYPE ';' have_arguments
+                    | identifier_list ':' TYPE
+                    | identifier_list ':' ARRAY INT TO INT OF array_types ';' have_arguments
+                    | identifier_list ':' ARRAY INT TO INT OF array_types
+                    ;
 
     /* variable */
 variables       : variable_declaration
@@ -152,6 +159,7 @@ expression      : '-' expression %prec NEG
                 | function_invocation
                 | STRING
                 | array_reference
+                | literal_constant
                 ;
 
 array_reference     : IDENTIFIER multi_array_reference

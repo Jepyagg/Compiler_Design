@@ -84,6 +84,7 @@ variable_declaration    : variable_declaration variable
 variable    : VAR identifier_list ':' TYPE ';'
             | VAR identifier_list ':' ARRAY INT TO INT OF array_types';'
             | VAR identifier_list ':' literal_constant ';'
+            | VAR identifier_list ':' '-' TYPE ';'
             ;
 
 array_types     : ARRAY INT TO INT OF array_types
@@ -154,10 +155,8 @@ expression      : '-' expression %prec NEG
                 | expression '/' expression
                 | expression MOD expression
                 | '(' expression ')' %prec '*'
-                | number
                 | IDENTIFIER
                 | function_invocation
-                | STRING
                 | array_reference
                 | literal_constant
                 ;

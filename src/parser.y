@@ -60,6 +60,8 @@ multi_identifier    : multi_identifier ',' IDENTIFIER
     /* arguments */
 arguments       : identifier_list ':' TYPE ';' arguments
                 | identifier_list ':' TYPE
+                | identifier_list ':' ARRAY INT TO INT OF array_types ';' arguments
+                | identifier_list ':' ARRAY INT TO INT OF array_types
                 |
                 ;
 

@@ -1,10 +1,15 @@
 %{
 #include "include/AST/program.h"
+#include "include/AST/ast.h"
 #include "include/core/error.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
 
 #define YYLTYPE yyltype
 
@@ -26,8 +31,16 @@ extern char *yytext;
 extern int yylex(void);
 static void yyerror(const char *msg);
 
-static AstNode *root;
+static class AstNode *root;
 %}
+
+%union {
+  int       int_value;
+  double    dval;
+  char*     text;
+
+  Astprogram* prog;
+}
 
 %locations
 
@@ -68,73 +81,71 @@ static AstNode *root;
                      */
 
 Program:
-    ProgramName SEMICOLON ProgramBody END ProgramName {
-        root = newProgramNode();
-    }
+    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, LineNum, ColNum, $4, $5); root = $$;}
 ;
 
 ProgramName:
-    ID
+    ID {$$ = new Id_Node($1);}
 ;
 
 ProgramBody:
-    DeclarationList FunctionList CompoundStatement
+    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $2, $3);}
 ;
 
 DeclarationList:
-    Epsilon
+    Epsilon {$$ = NULL;}
     |
-    Declarations
+    Declarations {$$ = $1;}
 ;
 
 Declarations:
-    Declaration
+    Declaration {$$ = new std::vector<Declaration_Node *>(); $$->push_back($1);}
     |
-    Declarations Declaration
+    Declarations Declaration {$1->push_back($2); $$ = $1;}
 ;
 
 FunctionList:
-    Epsilon
+    Epsilon {$$ = NULL;}
     |
-    Functions
+    Functions {$$ = $1;}
 ;
 
 Functions:
-    FunctionDeclaration
+    FunctionDeclaration {$$ = new std::vector<Function_Node *>(); $$->push_back($1);}
     |
-    Functions FunctionDeclaration
+    Functions FunctionDeclaration {$1->push_back($2); $$ = $1;}
 ;
 
 FunctionDeclaration:
     FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON
     CompoundStatement
-    END FunctionName
+    END FunctionName {$$ = new Function_Node();}
 ;
 
 FunctionName:
-    ID
+    ID {$$ = new Id_Node($1);}
 ;
 
 FormalArgList:
-    Epsilon
+    Epsilon {$$ = NULL;}
     |
-    FormalArgs
+    FormalArgs {$$ = $1;}
 ;
 
 FormalArgs:
-    FormalArg
+    FormalArg {$$ = new std::vector<Formal_Arg *>(); $$->push_back($1);}
     |
-    FormalArgs SEMICOLON FormalArg
+    FormalArgs SEMICOLON FormalArg {$1->push_back($3); $$ = $1;}
 ;
 
 FormalArg:
-    IdList COLON Type
+    IdList COLON Type {$$ = new Formal_Arg($1, $3);}
 ;
 
 IdList:
-    ID
+    ID {$$ = new std::vector<Id_Node *>(); $$->push_back(new Id_Node($1));}
     |
-    IdList COMMA ID
+    IdList COMMA ID {$1->push_back(new Id_Node($3)); $$ = $1;}
 ;
 
 ReturnType:
@@ -148,23 +159,23 @@ ReturnType:
                                    */
 
 Declaration:
-    VAR IdList COLON TypeOrConstant SEMICOLON
+    VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4);}
 ;
 
 TypeOrConstant:
-    Type
+    Type {$$ = $1;}
     |
-    LiteralConstant
+    LiteralConstant {$$ = $1;}
 ;
 
 Type:
-    ScalarType
+    ScalarType {$$ = $1;}
     |
-    ArrType
+    ArrType {$$ = $1;}
 ;
 
 ScalarType:
-    INTEGER
+    INTEGER 
     |
     REAL
     |

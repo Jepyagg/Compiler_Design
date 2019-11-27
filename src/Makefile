@@ -1,4 +1,4 @@
-CC      = gcc
+CC      = g++
 LEX     = flex
 YACC    = bison
 CFLAGS  = -Wall -std=c11

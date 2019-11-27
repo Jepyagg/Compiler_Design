@@ -85,10 +85,10 @@ float {integer}\.(0|[0-9]*[1-9])
 "while"   { TOKEN(KWwhile);   return WHILE; }
 
     /* Identifier */
-[a-zA-Z][a-zA-Z0-9]* { TOKEN_STRING(id, yytext); return ID; }
+[a-zA-Z][a-zA-Z0-9]* { yylval.text = yytext; TOKEN_STRING(id, yytext); return ID; }
 
     /* Integer (decimal/octal) */
-{integer} { TOKEN_STRING(integer, yytext);     return INT_LITERAL; }
+{integer} { yylval.int_val = atoi(yytext); TOKEN_STRING(integer, yytext); return INT_LITERAL; }
 0[0-7]+   { TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
 
     /* Floating-Point */
@@ -97,6 +97,7 @@ float {integer}\.(0|[0-9]*[1-9])
     /* Scientific Notation [Ee][+-]?[0-9]+ */
 ({integer}|{float})[Ee][+-]?({integer}) {
     TOKEN_STRING(scientific, yytext);
+    yylval.text = strdup(yytext);
     return REAL_LITERAL;
 }
 
@@ -119,6 +120,7 @@ float {integer}\.(0|[0-9]*[1-9])
     }
     *StrPtr = '\0';
     TOKEN_STRING(string, StringLiteral);
+    yylval.text = strdup(yytext);
     return STRING_LITERAL;
 }
     /* Whitespace */

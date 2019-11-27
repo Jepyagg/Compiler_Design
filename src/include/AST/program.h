@@ -7,7 +7,13 @@ typedef struct __ProgramNode {
   // TODO
 } ProgramNode;
 
-AstNode *newProgramNode(void);
+
+class ProgramNode : public Astnode {
+    public:
+        void visit() override;
+};
+
+AstNode *newProgramNode(int a, int b, char c, char d);
 void freeProgramNode(void *node);
 
 #endif

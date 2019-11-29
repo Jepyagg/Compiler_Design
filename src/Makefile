@@ -1,7 +1,7 @@
 ASTDIR 		:= src/AST/
 AST 		:= $(shell find $(ASTDIR) -name '*.cpp')
 
-VSTDIR		:= src/VST/
+VSTDIR		:= src/visitor/
 VST 		:= $(shell find $(VSTDIR) -name '*.cpp')
 
 CPP_FILES 	:= $(AST) $(VST)

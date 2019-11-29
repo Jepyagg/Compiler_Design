@@ -46,12 +46,16 @@ Visitor vs;
   AstProgram*           prog;
   Program_body*         prog_body;
   Declaration_Node*     decl;
+  Statement_Node*       stat;
   Id_Node*              id;
   Const_Node*           Const;
   Compound_Node*        compound;
+  Array_Node*           arr;
 
   vector<Declaration_Node *>*               decl_list;
-  vector<Id_Node *> *                       id_list;
+  vector<Statement_Node *>*                 stat_list;
+  vector<Id_Node *>*                        id_list;
+  vector<Array_Node *>*                     arr_list;
 }
 
 %locations
@@ -96,39 +100,36 @@ Visitor vs;
 %type <compound>                    CompoundStatement
 %type <decl_list>                   DeclarationList Declarations
 %type <decl>                        Declaration
+%type <stat_list>                   StatementList Statements
+%type <stat>                        Statement
 %type <func>                        FunctionList
 %type <id_list>                     IdList
-%type <Const>                       TypeOrConstant Type LiteralConstant
+%type <Const>                       TypeOrConstant Type LiteralConstant ArrType
 %type <str_val>                     ScalarType
+%type <arr_list>                    ArrDecl
 
 %%
     /*
        Program Units
                      */
 
-Program:
-    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, @1.first_line, @1.first_column, $3); $$->accept(vs);}
-;
+Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, @1.first_line, @1.first_column, $3); $$->accept(vs);}
+            ;
 
-ProgramName:
-    ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
-;
+ProgramName     : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
+                ;
 
 ProgramBody:
     DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $3);}
 ;
 
-DeclarationList:
-    Epsilon {$$ = NULL;}
-    |
-    Declarations {$$ = $1;}
-;
+DeclarationList     : Epsilon {$$ = NULL;}
+                    | Declarations {$$ = $1;}
+                    ;
 
-Declarations:
-    Declaration {$$ = new vector<Declaration_Node *>(); $$->push_back($1);}
-    |
-    Declarations Declaration {$1->push_back($2); $$ = $1;}
-;
+Declarations    : Declaration {$$ = new vector<Declaration_Node *>(); $$->push_back($1);}
+                | Declarations Declaration {$1->push_back($2); $$ = $1;}
+                ;
 
 FunctionList:
     Epsilon
@@ -168,11 +169,9 @@ FormalArg:
     IdList COLON Type
 ;
 
-IdList:
-    ID {$$ = new vector<Id_Node *>(); Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$->push_back(tmp);}
-    |
-    IdList COMMA ID {Id_Node* tmp = new Id_Node($3, yylloc.first_line, yylloc.first_column); $1->push_back(tmp); $$ = $1;}
-;
+IdList      : ID {$$ = new vector<Id_Node *>(); Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$->push_back(tmp);}
+            | IdList COMMA ID {Id_Node* tmp = new Id_Node($3, yylloc.first_line, yylloc.first_column); $1->push_back(tmp); $$ = $1;}
+            ;
 
 ReturnType:
     COLON ScalarType
@@ -188,49 +187,33 @@ Declaration:
     VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4, @1.first_line, @1.first_column);}
 ;
 
-TypeOrConstant:
-    Type {$$ = $1;}
-    |
-    LiteralConstant {$$ = $1;}
+TypeOrConstant      : Type {$$ = $1;}
+                    | LiteralConstant {$$ = $1;}
+                    ;
+
+Type    : ScalarType {$$ = new Const_Node($1, 0, yylloc.first_line, yylloc.first_column);}
+        | ArrType {$$ = $1;}
+        ;
+
+ScalarType      : INTEGER {$$ = $1;}
+                | REAL {$$ = $1;}
+                | STRING {$$ = $1;}
+                | BOOLEAN {$$ = $1;}
+                ;
+
+ArrType     : ArrDecl ScalarType {Const_Node* tmp = new Const_Node($2, 5, yylloc.first_line, yylloc.first_column); tmp->arr_list = $1; $$ = tmp;}
+            ;
+
+ArrDecl     : ARRAY INT_LITERAL TO INT_LITERAL OF {$$ = new vector<Array_Node *>(); Array_Node* tmp = new Array_Node($2, $4); $$->push_back(tmp);}
+            | ArrDecl ARRAY INT_LITERAL TO INT_LITERAL OF {Array_Node* tmp = new Array_Node($3, $5); $1->push_back(tmp); $$ = $1;}
 ;
 
-Type:
-    ScalarType {$$ = new Const_Node($1, 0, yylloc.first_line, yylloc.first_column);}
-    |
-    ArrType
-;
-
-ScalarType:
-    INTEGER {$$ = $1;}
-    |
-    REAL {$$ = $1;}
-    |
-    STRING {$$ = $1;}
-    |
-    BOOLEAN {$$ = $1;}
-;
-
-ArrType:
-    ArrDecl ScalarType
-;
-
-ArrDecl:
-    ARRAY INT_LITERAL TO INT_LITERAL OF
-    |
-    ArrDecl ARRAY INT_LITERAL TO INT_LITERAL OF
-;
-
-LiteralConstant:
-    INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line, yylloc.first_column);}
-    |
-    REAL_LITERAL {$$ = new Const_Node($1, 2, yylloc.first_line, yylloc.first_column);}
-    |
-    STRING_LITERAL {$$ = new Const_Node($1, 3, yylloc.first_line, yylloc.first_column);}
-    |
-    TRUE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
-    |
-    FALSE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
-;
+LiteralConstant     : INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line, yylloc.first_column);}
+                    | REAL_LITERAL {$$ = new Const_Node($1, 2, yylloc.first_line, yylloc.first_column);}
+                    | STRING_LITERAL {$$ = new Const_Node($1, 3, yylloc.first_line, yylloc.first_column);}
+                    | TRUE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
+                    | FALSE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
+                    ;
 
     /*
        Statements
@@ -252,9 +235,8 @@ Statement:
     FunctionInvokation
 ;
 
-CompoundStatement:
-    BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, @1.first_line, @1.first_column);}
-;
+CompoundStatement       :BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
+                        ;
 
 Simple:
     VariableReference ASSIGN Expression SEMICOLON
@@ -326,17 +308,13 @@ Expressions:
     Expressions COMMA Expression
 ;
 
-StatementList:
-    Epsilon
-    |
-    Statements
-;
+StatementList       : Epsilon {$$ = NULL;}
+                    | Statements {$$ = $1;}
+                    ;
 
-Statements:
-    Statement
-    |
-    Statements Statement
-;
+Statements      : Statement {$$ = new vector<Statement_Node *>(); $$->push_back($1);}
+                | Statements Statement {$1->push_back($2); $$ = $1;}
+                ;
 
 Expression:
     L_PARENTHESIS Expression R_PARENTHESIS
@@ -381,8 +359,8 @@ Expression:
     /*
        misc
             */
-Epsilon:
-;
+Epsilon     :
+            ;
 %%
 
 void yyerror(const char *msg) {

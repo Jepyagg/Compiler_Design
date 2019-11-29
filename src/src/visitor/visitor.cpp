@@ -20,11 +20,15 @@ void Visitor::visit(AstProgram *m) {
 void Visitor::visit(Program_body *m) {
     indent_space++;
     vector<Declaration_Node *>* tmp = m->decl_list;
-    for(auto v : *tmp) {
-        v->accept(*this);
+    if(tmp != 0) {
+        for(auto v : *tmp) {
+            v->accept(*this);
+        }
     }
-    space_plus();
-    m->comp->accept(*this);
+    if(m->comp != 0) {
+        space_plus();
+        m->comp->accept(*this);
+    }
 }
 
 void Visitor::visit(Declaration_Node *m) { 
@@ -40,27 +44,44 @@ void Visitor::visit(Declaration_Node *m) {
 }
 
 void Visitor::visit(Const_Node *m) {
-    space_plus();
-    cout << "constant <line: " << m->line_num << ", col: " << m->col_num << "> ";
-    if(m->state == 1) {
-        int tmp = 0;
-        if(m->str[0] == '0') {
-            tmp = strtol(m->str, NULL, 8);
+    if(m->state != 5) {
+        space_plus();
+        cout << "constant <line: " << m->line_num << ", col: " << m->col_num << "> ";
+        if(m->state == 1) {
+            int tmp = 0;
+            if(m->str[0] == '0') {
+                tmp = strtol(m->str, NULL, 8);
+                cout << fixed << setprecision(6) << tmp << '\n';
+            } else {
+                tmp = atoi(m->str);
+                cout << tmp << '\n';
+            }
+        } else if(m->state == 2) {
+            double tmp = atof(m->str);
             cout << fixed << setprecision(6) << tmp << '\n';
-        } else {
-            tmp = atoi(m->str);
-            cout << tmp << '\n';
+        } else if(m->state == 3 || m->state == 4) {
+            cout << m->str << '\n';
         }
-    } else if(m->state == 2) {
-        double tmp = atof(m->str);
-        cout << fixed << setprecision(6) << tmp << '\n';
-    } else if(m->state == 3 || m->state == 4) {
-        cout << m->str << '\n';
+    } else if(m->state == 5) {
+        cout << m->str;
+        vector<Array_Node*>* tmp = m->arr_list;
+        for(auto v : *tmp) {
+            v->accept(*this);
+        }
+        cout << '\n';
     }
 }
 
 void Visitor::visit(Compound_Node *m) {
     cout << "compound statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+}
+
+void Visitor::visit(Array_Node *m) {
+    cout << "[" << m->str_start << "..." << m->str_end << "]";
+}
+
+void Visitor::visit(Statement_Node *m) {
+    printf("statement\n");
 }
 
 void Visitor::visit(Id_Node *m) {
@@ -89,5 +110,7 @@ void Visitor::visit(Id_Node *m) {
         indent_space++;
         tmp->accept(*this);
         indent_space--;
+    } else if(tmp->state == 5) {
+        tmp->accept(*this); //array
     }
 }

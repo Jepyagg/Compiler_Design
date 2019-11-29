@@ -13,8 +13,8 @@ class AstProgram;
 class Program_body;
 class Declaration_Node;
 class Const_Node;
-class Type_Node;
 class Id_Node;
+class Compound_Node;
 
 class VisitorBase {
     public:
@@ -23,6 +23,7 @@ class VisitorBase {
         virtual void visit(class  Declaration_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
+        virtual void visit(class  Compound_Node*e) = 0;
 };
 
 class AstNode {
@@ -39,17 +40,7 @@ class Id_Node : public AstNode {
         Const_Node* const_val;
         Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print();
 };
-
-//no use
-// class Type_Node : public AstNode {
-//     public:
-//         char* name;
-//         Type_Node(char* id): name(id){};
-//         void accept(VisitorBase &v) { v.visit(this); }
-//         void print();
-// };
 
 class Const_Node : public AstNode { //save type and const
     public:
@@ -57,7 +48,6 @@ class Const_Node : public AstNode { //save type and const
         int line_num, col_num, state = 0;
         Const_Node(char*s, int sel, int line, int col): str(s), state(sel), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print();
 };
 
 class AstProgram : public AstNode {
@@ -68,7 +58,6 @@ class AstProgram : public AstNode {
         Program_body* p_body;
         AstProgram(Id_Node* id, int line, int col, Program_body* pb): identifier(id), line_num(line), col_num(col), p_body(pb){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print();
 
 };
 
@@ -79,16 +68,23 @@ class Declaration_Node : public AstNode {
         Const_Node* type_val;
         Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print();
+};
+
+class Compound_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        vector<Declaration_Node *>* decl_list;
+        Compound_Node(vector<Declaration_Node *> *decl, int line, int col):decl_list(decl), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Program_body : public AstNode {
     public:
         int line_num, col_num;
         vector<Declaration_Node *>* decl_list;
-        Program_body(vector<Declaration_Node *> *decl):decl_list(decl){};
+        Compound_Node* comp;
+        Program_body(vector<Declaration_Node *> *decl, Compound_Node* com):decl_list(decl), comp(com){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print();
 };
 
 

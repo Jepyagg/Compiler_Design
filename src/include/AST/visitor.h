@@ -10,6 +10,7 @@ class Visitor : public VisitorBase {
         void visit(class  Declaration_Node*e) override;
         void visit(class  Const_Node*e) override;
         void visit(class  Id_Node*e) override;
+        void visit(class  Compound_Node*e) override;
 };
 
 #endif

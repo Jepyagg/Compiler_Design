@@ -47,8 +47,8 @@ Visitor vs;
   Program_body*         prog_body;
   Declaration_Node*     decl;
   Id_Node*              id;
-  Type_Node*            TType;
   Const_Node*           Const;
+  Compound_Node*        compound;
 
   vector<Declaration_Node *>*               decl_list;
   vector<Id_Node *> *                       id_list;
@@ -93,10 +93,10 @@ Visitor vs;
 %type <prog>                        Program
 %type <prog_body>                   ProgramBody
 %type <id>                          ProgramName
+%type <compound>                    CompoundStatement
 %type <decl_list>                   DeclarationList Declarations
 %type <decl>                        Declaration
 %type <func>                        FunctionList
-%type <decl>                        CompoundStatement
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant
 %type <str_val>                     ScalarType
@@ -115,7 +115,7 @@ ProgramName:
 ;
 
 ProgramBody:
-    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1);}
+    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $3);}
 ;
 
 DeclarationList:
@@ -253,10 +253,7 @@ Statement:
 ;
 
 CompoundStatement:
-    BEGIN_
-    DeclarationList
-    StatementList
-    END
+    BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, @1.first_line, @1.first_column);}
 ;
 
 Simple:

@@ -3,17 +3,17 @@
 
 #include "AST/ast.h"
 
-typedef struct __ProgramNode {
-  // TODO
-} ProgramNode;
+// typedef struct __ProgramNode {
+//   // TODO
+// } ProgramNode;
 
 
-class ProgramNode : public Astnode {
-    public:
-        void visit() override;
-};
+// class ProgramNode : public Astnode {
+//     public:
+//         void visit() override;
+// };
 
-AstNode *newProgramNode(int a, int b, char c, char d);
-void freeProgramNode(void *node);
+// AstNode *newProgramNode(int a, int b, char c, char d);
+// void freeProgramNode(void *node);
 
 #endif

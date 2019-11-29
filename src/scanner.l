@@ -2,12 +2,15 @@
 #include <stdint.h>
 
 #include "include/core/error.h"
+#include "include/AST/ast.h"
 #include "parser.h"
 
 #define YY_USER_ACTION                                                         \
   yylloc.first_line = LineNum;                                                \
   yylloc.first_column = ColNum;                                               \
   ColNum += yyleng;
+
+extern "C" int yylex();
 
 #define LIST                strCat(yytext)
 #define TOKEN(t)            {LIST; if (OptTok) printf("<%s>\n", #t);}
@@ -85,19 +88,19 @@ float {integer}\.(0|[0-9]*[1-9])
 "while"   { TOKEN(KWwhile);   return WHILE; }
 
     /* Identifier */
-[a-zA-Z][a-zA-Z0-9]* { yylval.text = yytext; TOKEN_STRING(id, yytext); return ID; }
+[a-zA-Z][a-zA-Z0-9]* { yylval.str_val = strdup(yytext); TOKEN_STRING(id, yytext); return ID; }
 
     /* Integer (decimal/octal) */
 {integer} { yylval.int_val = atoi(yytext); TOKEN_STRING(integer, yytext); return INT_LITERAL; }
-0[0-7]+   { TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
+0[0-7]+   { yylval.int_val = strtol(yytext, NULL, 8); TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
 
     /* Floating-Point */
-{float} { TOKEN_STRING(float, yytext); return REAL_LITERAL; }
+{float} { yylval.dou_val = atof(yytext); TOKEN_STRING(float, yytext); return REAL_LITERAL; }
 
     /* Scientific Notation [Ee][+-]?[0-9]+ */
 ({integer}|{float})[Ee][+-]?({integer}) {
     TOKEN_STRING(scientific, yytext);
-    yylval.text = strdup(yytext);
+    yylval.dou_val = atof(yytext);
     return REAL_LITERAL;
 }
 
@@ -120,7 +123,7 @@ float {integer}\.(0|[0-9]*[1-9])
     }
     *StrPtr = '\0';
     TOKEN_STRING(string, StringLiteral);
-    yylval.text = strdup(yytext);
+    yylval.str_val = strdup(yytext);
     return STRING_LITERAL;
 }
     /* Whitespace */

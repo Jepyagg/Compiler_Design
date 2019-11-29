@@ -11,6 +11,14 @@
 #include <vector>
 using namespace std;
 
+extern "C" int yylex();
+extern "C" int yyparse();
+
+#define YY_USER_ACTION \
+    yylloc.first_line = LineNum; \
+    yylloc.first_column = ColNum; \
+    ColNum += yyleng;
+
 #define YYLTYPE yyltype
 
 typedef struct YYLTYPE {
@@ -35,11 +43,16 @@ static class AstNode *root;
 %}
 
 %union {
-  int       int_value;
-  double    dval;
-  char*     text;
+  int                   int_val;
+  double                dou_val;
+  char*                 str_val;
 
-  Astprogram* prog;
+  AstProgram*           prog;
+  Program_body*         prog_body;
+  Declaration_Node*     decl;
+  Id_Node*              id;
+  vector<Declaration_Node *>*               decl_list;
+  vector<Id_Node *> *                       id_list;
 }
 
 %locations
@@ -68,12 +81,23 @@ static class AstNode *root;
 %token PRINT READ
 
     /* Identifier */
-%token ID
+%token <str_val> ID
 
     /* Literal */
 %token INT_LITERAL
 %token REAL_LITERAL
 %token STRING_LITERAL
+
+
+%type <prog>                        Program
+%type <prog_body>                   ProgramBody
+%type <id>                          ProgramName
+%type <decl_list>                   DeclarationList Declarations
+%type <decl>                        Declaration
+%type <func>                        FunctionList
+%type <decl>                        CompoundStatement
+%type <id_list>                     IdList
+%type <id_list>                     TypeOrConstant
 
 %%
     /*
@@ -81,7 +105,7 @@ static class AstNode *root;
                      */
 
 Program:
-    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, LineNum, ColNum, $4, $5); root = $$;}
+    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1); root = $$;}
 ;
 
 ProgramName:
@@ -89,7 +113,7 @@ ProgramName:
 ;
 
 ProgramBody:
-    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $2, $3);}
+    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1);}
 ;
 
 DeclarationList:
@@ -99,53 +123,53 @@ DeclarationList:
 ;
 
 Declarations:
-    Declaration {$$ = new std::vector<Declaration_Node *>(); $$->push_back($1);}
+    Declaration {$$ = new vector<Declaration_Node *>(); $$->push_back($1);}
     |
     Declarations Declaration {$1->push_back($2); $$ = $1;}
 ;
 
 FunctionList:
-    Epsilon {$$ = NULL;}
+    Epsilon
     |
-    Functions {$$ = $1;}
+    Functions
 ;
 
 Functions:
-    FunctionDeclaration {$$ = new std::vector<Function_Node *>(); $$->push_back($1);}
+    FunctionDeclaration
     |
-    Functions FunctionDeclaration {$1->push_back($2); $$ = $1;}
+    Functions FunctionDeclaration
 ;
 
 FunctionDeclaration:
     FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON
     CompoundStatement
-    END FunctionName {$$ = new Function_Node();}
+    END FunctionName
 ;
 
 FunctionName:
-    ID {$$ = new Id_Node($1);}
+    ID
 ;
 
 FormalArgList:
-    Epsilon {$$ = NULL;}
+    Epsilon
     |
-    FormalArgs {$$ = $1;}
+    FormalArgs
 ;
 
 FormalArgs:
-    FormalArg {$$ = new std::vector<Formal_Arg *>(); $$->push_back($1);}
+    FormalArg
     |
-    FormalArgs SEMICOLON FormalArg {$1->push_back($3); $$ = $1;}
+    FormalArgs SEMICOLON FormalArg
 ;
 
 FormalArg:
-    IdList COLON Type {$$ = new Formal_Arg($1, $3);}
+    IdList COLON Type
 ;
 
 IdList:
-    ID {$$ = new std::vector<Id_Node *>(); $$->push_back(new Id_Node($1));}
+    ID
     |
-    IdList COMMA ID {$1->push_back(new Id_Node($3)); $$ = $1;}
+    IdList COMMA ID
 ;
 
 ReturnType:
@@ -163,19 +187,19 @@ Declaration:
 ;
 
 TypeOrConstant:
-    Type {$$ = $1;}
+    Type
     |
-    LiteralConstant {$$ = $1;}
+    LiteralConstant
 ;
 
 Type:
-    ScalarType {$$ = $1;}
+    ScalarType
     |
-    ArrType {$$ = $1;}
+    ArrType
 ;
 
 ScalarType:
-    INTEGER 
+    INTEGER
     |
     REAL
     |
@@ -385,7 +409,6 @@ int main(int argc, const char *argv[]) {
     yyin = fp;
     yyparse();
 
-    freeProgramNode(root);
 
     printf("\n"
            "|--------------------------------|\n"

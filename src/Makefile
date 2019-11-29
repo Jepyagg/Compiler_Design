@@ -1,7 +1,7 @@
 CC      = g++
 LEX     = flex
 YACC    = bison
-CFLAGS  = -Wall -std=c11
+CFLAGS  = -Wall -std=c++11
 LIBS    = -lfl -ly
 INCLUDE = -Iinclude
 

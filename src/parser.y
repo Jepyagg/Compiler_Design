@@ -46,16 +46,20 @@ Visitor vs;
   AstProgram*           prog;
   Program_body*         prog_body;
   Declaration_Node*     decl;
+  Function_Node*        func;
   Statement_Node*       stat;
   Id_Node*              id;
   Const_Node*           Const;
   Compound_Node*        compound;
   Array_Node*           arr;
+  Formal_Node*          form;
 
   vector<Declaration_Node *>*               decl_list;
+  vector<Function_Node *>*                  func_list;
   vector<Statement_Node *>*                 stat_list;
   vector<Id_Node *>*                        id_list;
   vector<Array_Node *>*                     arr_list;
+  vector<Formal_Node *>*                    form_list;
 }
 
 %locations
@@ -96,17 +100,20 @@ Visitor vs;
 
 %type <prog>                        Program
 %type <prog_body>                   ProgramBody
-%type <id>                          ProgramName
+%type <id>                          ProgramName FunctionName
 %type <compound>                    CompoundStatement
 %type <decl_list>                   DeclarationList Declarations
 %type <decl>                        Declaration
+%type <func_list>                   FunctionList Functions
+%type <func>                        FunctionDeclaration
 %type <stat_list>                   StatementList Statements
 %type <stat>                        Statement
-%type <func>                        FunctionList
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant ArrType
-%type <str_val>                     ScalarType
+%type <str_val>                     ScalarType ReturnType
 %type <arr_list>                    ArrDecl
+%type <form_list>                   FormalArgList FormalArgs
+%type <form>                        FormalArg
 
 %%
     /*
@@ -119,9 +126,8 @@ Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstPro
 ProgramName     : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
                 ;
 
-ProgramBody:
-    DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $3);}
-;
+ProgramBody     : DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $2, $3);}
+                ;
 
 DeclarationList     : Epsilon {$$ = NULL;}
                     | Declarations {$$ = $1;}
@@ -131,61 +137,47 @@ Declarations    : Declaration {$$ = new vector<Declaration_Node *>(); $$->push_b
                 | Declarations Declaration {$1->push_back($2); $$ = $1;}
                 ;
 
-FunctionList:
-    Epsilon
-    |
-    Functions
-;
+FunctionList    : Epsilon {$$ = NULL;}
+                | Functions {$$ = $1;}
+                ;
 
-Functions:
-    FunctionDeclaration
-    |
-    Functions FunctionDeclaration
-;
+Functions       : FunctionDeclaration {$$ = new vector<Function_Node *>(); $$->push_back($1);}
+                | Functions FunctionDeclaration {$1->push_back($2); $$ = $1;}
+                ;
 
-FunctionDeclaration:
-    FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON
-    CompoundStatement
-    END FunctionName
-;
+FunctionDeclaration     : FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON CompoundStatement END FunctionName {
+                          $$ = new Function_Node($1, $3, $7, $5, @1.first_line, @1.first_column);
+                        }
+                        ;
 
-FunctionName:
-    ID
-;
+FunctionName    : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
+                ;
 
-FormalArgList:
-    Epsilon
-    |
-    FormalArgs
-;
+FormalArgList       : Epsilon {$$ = NULL;}
+                    | FormalArgs {$$ = $1;}
+                    ;
 
-FormalArgs:
-    FormalArg
-    |
-    FormalArgs SEMICOLON FormalArg
-;
+FormalArgs      : FormalArg {$$ = new vector<Formal_Node *>(); $$->push_back($1);}
+                | FormalArgs SEMICOLON FormalArg {$1->push_back($3); $$ = $1;}
+                ;
 
-FormalArg:
-    IdList COLON Type
-;
+FormalArg       : IdList COLON Type {$$ = new Formal_Node($1, $3, @1.first_line, @1.first_column);}
+                ;
 
 IdList      : ID {$$ = new vector<Id_Node *>(); Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$->push_back(tmp);}
             | IdList COMMA ID {Id_Node* tmp = new Id_Node($3, yylloc.first_line, yylloc.first_column); $1->push_back(tmp); $$ = $1;}
             ;
 
-ReturnType:
-    COLON ScalarType
-    |
-    Epsilon
+ReturnType      : COLON ScalarType {$$ = $2;}
+                | Epsilon {$$ = NULL;}
 ;
 
     /*
        Data Types and Declarations
                                    */
 
-Declaration:
-    VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4, @1.first_line, @1.first_column);}
-;
+Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4, @1.first_line, @1.first_column);}
+                ;
 
 TypeOrConstant      : Type {$$ = $1;}
                     | LiteralConstant {$$ = $1;}
@@ -235,7 +227,7 @@ Statement:
     FunctionInvokation
 ;
 
-CompoundStatement       :BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
+CompoundStatement       : BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
                         ;
 
 Simple:

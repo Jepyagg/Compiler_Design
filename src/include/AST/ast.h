@@ -12,22 +12,26 @@ class AstNode;
 class AstProgram;
 class Program_body;
 class Declaration_Node;
+class Function_Node;
+class Statement_Node;
 class Const_Node;
 class Id_Node;
 class Compound_Node;
-class Statement_Node;
 class Array_Node;
+class Formal_Node;
 
 class VisitorBase {
     public:
         virtual void visit(class  AstProgram*e) = 0;
         virtual void visit(class  Program_body*e) = 0;
         virtual void visit(class  Declaration_Node*e) = 0;
+        virtual void visit(class  Function_Node*e) = 0;
+        virtual void visit(class  Statement_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
         virtual void visit(class  Compound_Node*e) = 0;
-        virtual void visit(class  Statement_Node*e) = 0;
         virtual void visit(class  Array_Node*e) = 0;
+        virtual void visit(class  Formal_Node*e) = 0;
 };
 
 class AstNode {
@@ -97,12 +101,34 @@ class Compound_Node : public AstNode {
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
+class Formal_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        vector<Id_Node *> * id_list;
+        Const_Node* type_val;
+        Formal_Node(vector<Id_Node *> * id, Const_Node* type, int line, int col):id_list(id), type_val(type), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Function_Node : public AstNode {
+    public:
+        char* name;
+        char* returntype;
+        int line_num, col_num;
+        Id_Node* ident;
+        Compound_Node* comp;
+        vector<Formal_Node *>* form_list;
+        Function_Node(Id_Node* id, vector<Formal_Node *>* form, Compound_Node* com, char* type, int line, int col): ident(id), form_list(form), comp(com), returntype(type), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
 class Program_body : public AstNode {
     public:
         int line_num, col_num;
         vector<Declaration_Node *>* decl_list;
+        vector<Function_Node *>* func_list;
         Compound_Node* comp;
-        Program_body(vector<Declaration_Node *> *decl, Compound_Node* com):decl_list(decl), comp(com){};
+        Program_body(vector<Declaration_Node *> *decl, vector<Function_Node *>* func, Compound_Node* com):decl_list(decl), func_list(func), comp(com){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

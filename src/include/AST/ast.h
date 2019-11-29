@@ -12,14 +12,9 @@ class AstNode;
 class AstProgram;
 class Program_body;
 class Declaration_Node;
-class Id_Node;
 class Const_Node;
-
-enum class Datatype {
-    int_type,
-    void_type,
-    bool_type
-};
+class Type_Node;
+class Id_Node;
 
 class VisitorBase {
     public:
@@ -41,16 +36,26 @@ class Id_Node : public AstNode {
     public:
         char* identifier;
         int line_num, col_num;
+        Const_Node* const_val;
         Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         void print();
 };
 
-class Const_Node : public AstNode {
+//no use
+// class Type_Node : public AstNode {
+//     public:
+//         char* name;
+//         Type_Node(char* id): name(id){};
+//         void accept(VisitorBase &v) { v.visit(this); }
+//         void print();
+// };
+
+class Const_Node : public AstNode { //save type and const
     public:
-        char* name;
-        int line_num, col_num;
-        Const_Node(char* id, int line, int col): name(id), line_num(line), col_num(col){};
+        char* str;
+        int line_num, col_num, state = 0;
+        Const_Node(char*s, int sel, int line, int col): str(s), state(sel), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         void print();
 };
@@ -67,76 +72,24 @@ class AstProgram : public AstNode {
 
 };
 
+class Declaration_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        vector<Id_Node *> * id_list;
+        Const_Node* type_val;
+        Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print();
+};
+
 class Program_body : public AstNode {
     public:
         int line_num, col_num;
         vector<Declaration_Node *>* decl_list;
         Program_body(vector<Declaration_Node *> *decl):decl_list(decl){};
         void accept(VisitorBase &v) { v.visit(this); }
-        void print(VisitorBase &v);
-};
-
-class Declaration_Node : public AstNode {
-    public:
-        int line_num, col_num;
-        vector<Id_Node *> * id_list;
-        Const_Node * data_type;
-        Declaration_Node(vector<Id_Node *> * list, Const_Node* type) : id_list(list), data_type(type){};
-        void accept(VisitorBase &v) { v.visit(this); }
         void print();
 };
-
-
-// class Function_Node : public AstNode {
-//     public:
-//         int line_num, col_num;
-//         char* name;
-//         Function_Node(char* id, int line, int col):name = strdup(id), line_num(line), col_num(col);
-
-//         vector<Declaration_Node *> decl_list;
-//         Compound_Statement_Node *comp_list;
-// };
-
-// class Expression_Node : public AstNode {
-//     public:
-// };
-
-// class Const_Node : public Expression_Node {
-//     public:
-//         int line_num, col_num;
-//         char* name;
-//         Const_Node(char* id, int line, int col):name = strdup(id), line_num(line), col_num(col);
-
-//         void accept(Visitor &v){};
-// };
-// class Boolean_Node : public Expression_Node {
-//     public:
-//         int line_num, col_num;
-//         char* name;
-//         Boolean_Node(char* id, int line, int col):name = strdup(id), line_num(line), col_num(col);
-
-//         void accept(Visitor &v){};
-// };
-
-// class Int_Node : public Expression_Node {
-//     public:
-//         int line_num, col_num;
-//         char* name;
-//         Int_Node(char* id, int line, int col):name = strdup(id), line_num(line), col_num(col);
-
-// };
-
-// class Compound_Statement_Node : public AstNode {
-//     vector<Declaration_Node *> decl_list;
-//     public:
-//         Compound_Statement_Node();
-// };
-
-// class Constant_Value_Node : public AstNode {
-//     public:
-//         weeawf()
-// };
-
 
 
 #endif

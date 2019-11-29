@@ -47,7 +47,9 @@ Visitor vs;
   Program_body*         prog_body;
   Declaration_Node*     decl;
   Id_Node*              id;
+  Type_Node*            TType;
   Const_Node*           Const;
+
   vector<Declaration_Node *>*               decl_list;
   vector<Id_Node *> *                       id_list;
 }
@@ -70,20 +72,21 @@ Visitor vs;
 %right UNARY_MINUS
 
     /* Keyword */
-%token ARRAY BOOLEAN INTEGER REAL STRING
+%token ARRAY
+%token <str_val> BOOLEAN INTEGER REAL STRING
 %token END BEGIN_ /* Use BEGIN_ since BEGIN is a keyword in lex */
 %token DO ELSE FOR IF THEN WHILE
 %token DEF OF TO RETURN VAR
-%token FALSE TRUE
+%token <str_val> FALSE TRUE
 %token PRINT READ
 
     /* Identifier */
 %token <str_val> ID
 
     /* Literal */
-%token INT_LITERAL
-%token REAL_LITERAL
-%token STRING_LITERAL
+%token <str_val> INT_LITERAL
+%token <str_val> REAL_LITERAL
+%token <str_val> STRING_LITERAL
 
 /* non-terminals */
 
@@ -95,8 +98,8 @@ Visitor vs;
 %type <func>                        FunctionList
 %type <decl>                        CompoundStatement
 %type <id_list>                     IdList
-%type <Const>                       TypeOrConstant Type
-%type <str_val>                     ScalarType INTEGER REAL STRING BOOLEAN
+%type <Const>                       TypeOrConstant Type LiteralConstant
+%type <str_val>                     ScalarType
 
 %%
     /*
@@ -166,9 +169,9 @@ FormalArg:
 ;
 
 IdList:
-    ID
+    ID {$$ = new vector<Id_Node *>(); Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$->push_back(tmp);}
     |
-    IdList COMMA ID
+    IdList COMMA ID {Id_Node* tmp = new Id_Node($3, yylloc.first_line, yylloc.first_column); $1->push_back(tmp); $$ = $1;}
 ;
 
 ReturnType:
@@ -182,17 +185,17 @@ ReturnType:
                                    */
 
 Declaration:
-    VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4);}
+    VAR IdList COLON TypeOrConstant SEMICOLON {$$ = new Declaration_Node($2, $4, @1.first_line, @1.first_column);}
 ;
 
 TypeOrConstant:
     Type {$$ = $1;}
     |
-    LiteralConstant
+    LiteralConstant {$$ = $1;}
 ;
 
 Type:
-    ScalarType {$$ = new Const_Node($1, yylloc.first_line, yylloc.first_column);}
+    ScalarType {$$ = new Const_Node($1, 0, yylloc.first_line, yylloc.first_column);}
     |
     ArrType
 ;
@@ -218,15 +221,15 @@ ArrDecl:
 ;
 
 LiteralConstant:
-    INT_LITERAL
+    INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line, yylloc.first_column);}
     |
-    REAL_LITERAL
+    REAL_LITERAL {$$ = new Const_Node($1, 2, yylloc.first_line, yylloc.first_column);}
     |
-    STRING_LITERAL
+    STRING_LITERAL {$$ = new Const_Node($1, 3, yylloc.first_line, yylloc.first_column);}
     |
-    TRUE
+    TRUE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
     |
-    FALSE
+    FALSE {$$ = new Const_Node($1, 4, yylloc.first_line, yylloc.first_column);}
 ;
 
     /*

@@ -5,12 +5,12 @@ int space_cnt = 0;
 
 void AstProgram::print() {
     cout << "program <line: " << line_num << ", col: " << col_num << "> " << identifier->identifier << " void\n";
-    p_body->accept(v);
 }
-void Program_body::print(VisitorBase &v) {
-    for(auto i : *decl_list) {
-        i->accept();
-    }
+void Program_body::print() {
+    // for(auto i : *decl_list) {
+    //     i->accept();
+    // }
+    printf("mother fuck\n");
 }
 void Const_Node::print(){printf("hello\n");}
 void Declaration_Node::print() {}

@@ -13,7 +13,7 @@ class AstProgram;
 class Program_body;
 class Declaration_Node;
 class Id_Node;
-
+class Const_Node;
 
 enum class Datatype {
     int_type,
@@ -21,18 +21,50 @@ enum class Datatype {
     bool_type
 };
 
+class VisitorBase {
+    public:
+        virtual void visit(class  AstProgram*e) = 0;
+        virtual void visit(class  Program_body*e) = 0;
+        virtual void visit(class  Declaration_Node*e) = 0;
+        virtual void visit(class  Const_Node*e) = 0;
+        virtual void visit(class  Id_Node*e) = 0;
+};
+
 class AstNode {
     public:
         AstNode(){};
+        virtual void accept(class VisitorBase &v) = 0;
         ~AstNode(){};
+};
+
+class Id_Node : public AstNode {
+    public:
+        char* identifier;
+        int line_num, col_num;
+        Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print();
+};
+
+class Const_Node : public AstNode {
+    public:
+        char* name;
+        int line_num, col_num;
+        Const_Node(char* id, int line, int col): name(id), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print();
 };
 
 class AstProgram : public AstNode {
     public:
-        int line_num, col_num;
         char* name;
+        int line_num, col_num;
         Id_Node* identifier;
-        AstProgram(Id_Node* id): identifier(id){};
+        Program_body* p_body;
+        AstProgram(Id_Node* id, int line, int col, Program_body* pb): identifier(id), line_num(line), col_num(col), p_body(pb){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print();
+
 };
 
 class Program_body : public AstNode {
@@ -40,22 +72,20 @@ class Program_body : public AstNode {
         int line_num, col_num;
         vector<Declaration_Node *>* decl_list;
         Program_body(vector<Declaration_Node *> *decl):decl_list(decl){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print(VisitorBase &v);
 };
 
 class Declaration_Node : public AstNode {
     public:
         int line_num, col_num;
-        vector<Id_Node *> * data_type;
         vector<Id_Node *> * id_list;
-        Declaration_Node(vector<Id_Node *> * list, vector<Id_Node *> * type) : id_list(list), data_type(type){};
+        Const_Node * data_type;
+        Declaration_Node(vector<Id_Node *> * list, Const_Node* type) : id_list(list), data_type(type){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        void print();
 };
 
-class Id_Node : public AstNode {
-    public:
-        char* identifier;
-        int line_num, col_num;
-        Id_Node(char* id):identifier(strdup(id)){};
-};
 
 // class Function_Node : public AstNode {
 //     public:

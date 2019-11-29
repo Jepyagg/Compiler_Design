@@ -5,11 +5,11 @@ int space_cnt = 0;
 
 void AstProgram::print() {
     cout << "program <line: " << line_num << ", col: " << col_num << "> " << identifier->identifier << " void\n";
-    p_body->accept(v);
+    p_body->print();
 }
-void Program_body::print(VisitorBase &v) {
+void Program_body::print() {
     for(auto i : *decl_list) {
-        i->accept();
+        i->print();
     }
 }
 void Const_Node::print(){printf("hello\n");}

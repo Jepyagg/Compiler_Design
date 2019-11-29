@@ -104,11 +104,11 @@ Visitor vs;
                      */
 
 Program:
-    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, @1.first_line, @1.first_column, $3); $$->accept(vs);}
+    ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, @1.first_line, @1.first_column); $$->accept(vs);}
 ;
 
 ProgramName:
-    ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
+    ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$->accept(vs);}
 ;
 
 ProgramBody:

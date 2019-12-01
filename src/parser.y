@@ -112,7 +112,7 @@ static Visitor vs;
 %type <func_list>                   FunctionList Functions
 %type <func>                        FunctionDeclaration
 %type <stat_list>                   StatementList Statements ElseOrNot
-%type <stat>                        Statement Simple Condition Return FunctionInvokation
+%type <stat>                        Statement Simple Condition While For Return FunctionInvokation
 %type <expr_list>                   ExpressionList Expressions ArrForm
 %type <expr>                        Expression
 %type <id_list>                     IdList
@@ -222,8 +222,8 @@ LiteralConstant     : INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line,
 Statement       : CompoundStatement {$$ = $1;}
                 | Simple {$$ = $1;}
                 | Condition {$$ = $1;}
-                | While
-                | For
+                | While {$$ = $1;}
+                | For {$$ = $1;}
                 | Return {$$ = $1;}
                 | FunctionInvokation {$$ = $1;}
                 ;
@@ -252,17 +252,16 @@ ElseOrNot       : ELSE StatementList {$$ = $2;}
                 | Epsilon {$$ = NULL;}
                 ;
 
-While:
-    WHILE Expression DO
-    StatementList
-    END DO
-;
+While       : WHILE Expression DO StatementList END DO {$$ = new While_Node($2, $4, @1.first_line, @1.first_column);}
+            ;
 
-For:
-    FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO
-    StatementList
-    END DO
-;
+For     : FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO StatementList END DO {Id_Node* tmp = new Id_Node($2, @2.first_line, @2.first_column);
+        Variable_Reference_Node* tmp2 = new Variable_Reference_Node(tmp, NULL, @2.first_line, @2.first_column);
+        Const_Node* tmp4 = new Const_Node($4, 1, @4.first_line, @4.first_column);
+        Assignment_Node* tmp3 = new Assignment_Node(tmp2, tmp4, @3.first_line, @3.first_column);
+        Const_Node* tmp5 = new Const_Node($6, 1, @6.first_line, @6.first_column);
+        $$ = new For_Node(tmp, tmp3, tmp4, tmp5, $8, @1.first_line, @1.first_column);}
+        ;
 
 Return      : RETURN Expression SEMICOLON {$$ = new Return_Node($2, @1.first_line, @1.first_column);}
             ;
@@ -270,7 +269,8 @@ Return      : RETURN Expression SEMICOLON {$$ = new Return_Node($2, @1.first_lin
 FunctionInvokation      : FunctionCall SEMICOLON {$$ = $1;}
                         ;
 
-FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$ = new Function_Call_Node(tmp, $3, @1.first_line, @1.first_column);}
+FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); 
+                $$ = new Function_Call_Node(tmp, $3, @1.first_line, @1.first_column);}
                 ;
 
 ExpressionList      : Epsilon {$$ = NULL;}

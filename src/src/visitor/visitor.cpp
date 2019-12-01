@@ -184,6 +184,41 @@ void Visitor::visit(If_Node *m) {
     indent_space--;
 }
 
+void Visitor::visit(While_Node *m) {
+    space_plus();
+    cout << "while statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->expr->accept(*this);
+    vector<Statement_Node *>* tmp = m->stat_list;
+    for (auto v : *tmp) {
+        v->accept(*this);
+    }
+    indent_space--;
+}
+
+void Visitor::visit(For_Node *m) {
+    space_plus();
+    cout << "for statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    space_plus();
+    cout << "declaration <line: " << m->ident->line_num << ", col: " << m->ident->col_num << ">\n";
+    indent_space++;
+    m->val2->state = 6;
+    m->ident->const_val = m->val2;
+    m->ident->accept(*this);
+    m->val2->state = 1;
+    indent_space--;
+    m->val->accept(*this);
+    m->val3->accept(*this);
+    vector<Statement_Node *>* tmp = m->stat_list;
+    if(tmp != 0) {
+        for (auto v : *tmp) {
+            v->accept(*this);
+        }
+    }
+    indent_space--;
+}
+
 void Visitor::visit(Return_Node *m) {
     space_plus();
     cout << "return statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
@@ -301,5 +336,7 @@ void Visitor::visit(Id_Node *m) {
         indent_space--;
     } else if(tmp->state == 5) {
         tmp->accept(*this); //array
+    } else if(tmp->state == 6) {
+        cout << "integer\n";
     }
 }

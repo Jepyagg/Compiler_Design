@@ -19,6 +19,8 @@ class Assignment_Node;
 class Print_Node;
 class Read_Node;
 class If_Node;
+class While_Node;
+class For_Node;
 class Return_Node;
 class Function_Call_Node;
 class Expression_Node;
@@ -42,6 +44,8 @@ class VisitorBase {
         virtual void visit(class  Print_Node*e) = 0;
         virtual void visit(class  Read_Node*e) = 0;
         virtual void visit(class  If_Node*e) = 0;
+        virtual void visit(class  While_Node*e) = 0;
+        virtual void visit(class  For_Node*e) = 0;
         virtual void visit(class  Return_Node*e) = 0;
         virtual void visit(class  Function_Call_Node*e) = 0;
         virtual void visit(class  Expression_Node*e) = 0;
@@ -159,6 +163,26 @@ class If_Node : public Statement_Node {
         vector<Statement_Node *>* stat_list;
         vector<Statement_Node *>* stat2_list;
         If_Node(Expression_Node *expression, vector<Statement_Node *>* stat, vector<Statement_Node *>* stat2, int line, int col):expr(expression), stat_list(stat), stat2_list(stat2), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class While_Node : public Statement_Node {
+    public:
+        int line_num, col_num;
+        Expression_Node *expr;
+        vector<Statement_Node *>* stat_list;
+        While_Node(Expression_Node *expression, vector<Statement_Node *>* stat, int line, int col):expr(expression), stat_list(stat), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class For_Node : public Statement_Node {
+    public:
+        int line_num, col_num;
+        Id_Node* ident;
+        Assignment_Node* val;
+        Const_Node* val2, *val3;
+        vector<Statement_Node *>* stat_list;
+        For_Node(Id_Node *id, Assignment_Node* const1, Const_Node* const2, Const_Node* const3, vector<Statement_Node *>* stat, int line, int col):ident(id), val(const1), val2(const2), val3(const3), stat_list(stat), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

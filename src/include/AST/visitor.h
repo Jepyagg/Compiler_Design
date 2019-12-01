@@ -24,6 +24,7 @@ class Visitor : public VisitorBase {
         void visit(class  Binary_Operator_Node*e) override;
         void visit(class  Unary_Operator_Node*e) override;
         void visit(class  Variable_Reference_Node*e) override;
+        void visit(class  Function_Call_expr_Node*e) override;
         void visit(class  Id_Node*e) override;
         void visit(class  Array_Node*e) override;
         void visit(class  Formal_Node*e) override;

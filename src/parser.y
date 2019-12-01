@@ -56,6 +56,7 @@ static Visitor vs;
   Formal_Node*                              form;
   Variable_Reference_Node*                  vari;
   Function_Call_Node*                       func_call;
+  Function_Call_expr_Node*                  func_call_expr;
   If_Node*                                  iff;
 
   vector<Declaration_Node *>*               decl_list;
@@ -118,6 +119,7 @@ static Visitor vs;
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant ArrType
 %type <func_call>                   FunctionCall
+%type <func_call_expr>              FunctionCall_expr
 %type <vari>                        VariableReference
 %type <str_val>                     ScalarType ReturnType
 %type <arr_list>                    ArrDecl
@@ -273,6 +275,10 @@ FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS {Id_Node* tmp = 
                 $$ = new Function_Call_Node(tmp, $3, @1.first_line, @1.first_column);}
                 ;
 
+FunctionCall_expr       : ID L_PARENTHESIS ExpressionList R_PARENTHESIS {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); 
+                        $$ = new Function_Call_expr_Node(tmp, $3, @1.first_line, @1.first_column);}
+                        ;
+
 ExpressionList      : Epsilon {$$ = NULL;}
                     | Expressions {$$ = $1;}
                     ;
@@ -307,7 +313,7 @@ Expression      : L_PARENTHESIS Expression R_PARENTHESIS {$$ = $2;}
                 | Expression OR Expression {$$ = new Binary_Operator_Node($1, $3, strdup("or"), @2.first_line, @2.first_column);}
                 | LiteralConstant {$$ = $1;}
                 | VariableReference {$$ = $1;}
-                | FunctionCall
+                | FunctionCall_expr {$$ = $1;}
                 ;
 
     /*

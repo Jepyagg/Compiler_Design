@@ -276,6 +276,18 @@ void Visitor::visit(Variable_Reference_Node *m) {
     }
 }
 
+void Visitor::visit(Function_Call_expr_Node *m) {
+    space_plus();
+    cout << "function call statement <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
+    if(m->expr_list != 0) {
+        for (auto tmp : *m->expr_list) {
+            indent_space++;
+            tmp->accept(*this);
+            indent_space--;
+        }
+    }
+}
+
 void Visitor::visit(Function_Node *m) {
     space_plus();
     cout << "function declaration <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << " ";

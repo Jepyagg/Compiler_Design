@@ -28,6 +28,7 @@ class Const_Node;
 class Binary_Operator_Node;
 class Unary_Operator_Node;
 class Variable_Reference_Node;
+class Function_Call_expr_Node;
 class Id_Node;
 class Array_Node;
 class Formal_Node;
@@ -53,6 +54,7 @@ class VisitorBase {
         virtual void visit(class  Binary_Operator_Node*e) = 0;
         virtual void visit(class  Unary_Operator_Node*e) = 0;
         virtual void visit(class  Variable_Reference_Node*e) = 0;
+        virtual void visit(class  Function_Call_expr_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
         virtual void visit(class  Array_Node*e) = 0;
         virtual void visit(class  Formal_Node*e) = 0;
@@ -112,6 +114,15 @@ class Variable_Reference_Node : public Expression_Node {
         Id_Node* ident;
         vector<Expression_Node*>* expr_list;
         Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), expr_list(ind), Expression_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Function_Call_expr_Node : public Expression_Node {
+    public:
+        int line_num, col_num;
+        Id_Node* ident;
+        vector<Expression_Node*>* expr_list;
+        Function_Call_expr_Node(Id_Node* id, vector<Expression_Node*> *expression, int line, int col):ident(id), expr_list(expression), Expression_Node(line, col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

@@ -32,7 +32,6 @@ void Visitor::visit(Program_body *m) {
         }
     }
     if(m->comp != 0) {
-        space_plus();
         m->comp->accept(*this);
     }
 }
@@ -79,14 +78,31 @@ void Visitor::visit(Const_Node *m) {
 }
 
 void Visitor::visit(Compound_Node *m) {
+    space_plus();
     cout << "compound statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    vector<Declaration_Node *>* tmp = m->decl_list;
+    vector<Statement_Node *>* tmp2 = m->stat_list;
+    if(tmp != 0) {
+        for(auto v : *tmp) {
+            indent_space++;
+            v->accept(*this);
+            indent_space--;
+        }
+    }
+    if(tmp2 != 0) {
+        for(auto v2 : *tmp2) {
+            indent_space++;
+            v2->accept(*this);
+            indent_space--;
+        }
+    }
 }
 
 void Visitor::visit(Array_Node *m) {
     cout << "[" << m->str_start << "..." << m->str_end << "]";
 }
 
-void Visitor::visit(Formal_Node *m) {
+void Visitor::visit(Formal_Node *m) { //確認function_prototype 是要印什麼
     if(form_state != 0) {
         space_plus();
         cout << "declaration <line: " << m->line_num << ", col: " << m->col_num << ">\n";
@@ -122,6 +138,39 @@ void Visitor::visit(Statement_Node *m) {
     printf("statement\n");
 }
 
+void Visitor::visit(Print_Node *m) {
+    space_plus();
+    cout << "print statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->expr->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Expression_Node *m) {
+    printf("statement\n");
+}
+
+void Visitor::visit(Binary_Operator_Node *m) {
+    space_plus();
+    cout << "binary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
+    indent_space++;
+    m->leftoperand->accept(*this);
+    m->rightoperand->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Unary_Operator_Node *m) {
+    space_plus();
+    cout << "unary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
+    indent_space++;
+    m->operand->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Variable_Reference_Node *m) {
+    printf("statement\n");
+}
+
 void Visitor::visit(Function_Node *m) {
     space_plus();
     cout << "function declaration <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << " ";
@@ -149,7 +198,6 @@ void Visitor::visit(Function_Node *m) {
     }
     if(m->comp != 0) {
         indent_space++;
-        space_plus();
         m->comp->accept(*this);
         indent_space--;
     }

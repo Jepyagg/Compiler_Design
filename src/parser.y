@@ -34,29 +34,32 @@ extern char *yytext;
 extern int yylex(void);
 static void yyerror(const char *msg);
 
-Visitor vs;
+static Visitor vs;
 
 %}
 
 %union {
-  int                   int_val;
-  double                dou_val;
-  char*                 str_val;
+  int                                       int_val;
+  double                                    dou_val;
+  char*                                     str_val;
 
-  AstProgram*           prog;
-  Program_body*         prog_body;
-  Declaration_Node*     decl;
-  Function_Node*        func;
-  Statement_Node*       stat;
-  Id_Node*              id;
-  Const_Node*           Const;
-  Compound_Node*        compound;
-  Array_Node*           arr;
-  Formal_Node*          form;
+  AstProgram*                               prog;
+  Program_body*                             prog_body;
+  Declaration_Node*                         decl;
+  Function_Node*                            func;
+  Statement_Node*                           stat;
+  Expression_Node*                          expr;
+  Id_Node*                                  id;
+  Const_Node*                               Const;
+  Compound_Node*                            compound;
+  Array_Node*                               arr;
+  Formal_Node*                              form;
+  Variable_Reference_Node*                  vari;
 
   vector<Declaration_Node *>*               decl_list;
   vector<Function_Node *>*                  func_list;
   vector<Statement_Node *>*                 stat_list;
+  vector<Expression_Node *>*                expr_list;
   vector<Id_Node *>*                        id_list;
   vector<Array_Node *>*                     arr_list;
   vector<Formal_Node *>*                    form_list;
@@ -107,9 +110,12 @@ Visitor vs;
 %type <func_list>                   FunctionList Functions
 %type <func>                        FunctionDeclaration
 %type <stat_list>                   StatementList Statements
-%type <stat>                        Statement
+%type <stat>                        Statement Simple
+%type <expr_list>                   ExpressionList Expressions
+%type <expr>                        Expression
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant ArrType
+%type <vari>                        VariableReference
 %type <str_val>                     ScalarType ReturnType
 %type <arr_list>                    ArrDecl
 %type <form_list>                   FormalArgList FormalArgs
@@ -146,8 +152,7 @@ Functions       : FunctionDeclaration {$$ = new vector<Function_Node *>(); $$->p
                 ;
 
 FunctionDeclaration     : FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON CompoundStatement END FunctionName {
-                          $$ = new Function_Node($1, $3, $7, $5, @1.first_line, @1.first_column);
-                        }
+                          $$ = new Function_Node($1, $3, $7, $5, @1.first_line, @1.first_column);}
                         ;
 
 FunctionName    : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
@@ -170,7 +175,7 @@ IdList      : ID {$$ = new vector<Id_Node *>(); Id_Node* tmp = new Id_Node($1, y
 
 ReturnType      : COLON ScalarType {$$ = $2;}
                 | Epsilon {$$ = NULL;}
-;
+                ;
 
     /*
        Data Types and Declarations
@@ -213,8 +218,7 @@ LiteralConstant     : INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line,
 
 Statement:
     CompoundStatement
-    |
-    Simple
+                | Simple {$$ = $1;}
     |
     Condition
     |
@@ -230,13 +234,10 @@ Statement:
 CompoundStatement       : BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
                         ;
 
-Simple:
-    VariableReference ASSIGN Expression SEMICOLON
-    |
-    PRINT Expression SEMICOLON
-    |
-    READ VariableReference SEMICOLON
-;
+Simple      : VariableReference ASSIGN Expression SEMICOLON
+            | PRINT Expression SEMICOLON {$$ = new Print_Node($2, @1.first_line, @1.first_column);}
+            | READ VariableReference SEMICOLON
+            ;
 
 VariableReference:
     ID
@@ -284,21 +285,16 @@ FunctionInvokation:
     FunctionCall SEMICOLON
 ;
 
-FunctionCall:
-    ID L_PARENTHESIS ExpressionList R_PARENTHESIS
-;
+FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS
+                ;
 
-ExpressionList:
-    Epsilon
-    |
-    Expressions
-;
+ExpressionList      : Epsilon {$$ = NULL;}
+                    | Expressions {$$ = $1;}
+                    ;
 
-Expressions:
-    Expression
-    |
-    Expressions COMMA Expression
-;
+Expressions     : Expression {$$ = new vector<Expression_Node *>(); $$->push_back($1);}
+                | Expressions COMMA Expression {$1->push_back($3); $$ = $1;}
+                ;
 
 StatementList       : Epsilon {$$ = NULL;}
                     | Statements {$$ = $1;}
@@ -308,45 +304,26 @@ Statements      : Statement {$$ = new vector<Statement_Node *>(); $$->push_back(
                 | Statements Statement {$1->push_back($2); $$ = $1;}
                 ;
 
-Expression:
-    L_PARENTHESIS Expression R_PARENTHESIS
-    |
-    MINUS Expression %prec UNARY_MINUS
-    |
-    Expression MULTIPLY Expression
-    |
-    Expression DIVIDE Expression
-    |
-    Expression MOD Expression
-    |
-    Expression PLUS Expression
-    |
-    Expression MINUS Expression
-    |
-    Expression LESS Expression
-    |
-    Expression LESS_OR_EQUAL Expression
-    |
-    Expression GREATER Expression
-    |
-    Expression GREATER_OR_EQUAL Expression
-    |
-    Expression EQUAL Expression
-    |
-    Expression NOT_EQUAL Expression
-    |
-    NOT Expression
-    |
-    Expression AND Expression
-    |
-    Expression OR Expression
-    |
-    LiteralConstant
-    |
-    VariableReference
-    |
-    FunctionCall
-;
+Expression      : L_PARENTHESIS Expression R_PARENTHESIS {$$ = $2;}
+                | MINUS Expression %prec UNARY_MINUS {$$ = new Unary_Operator_Node($2, strdup("neg"), @1.first_line, @1.first_column);}
+                | Expression MULTIPLY Expression {$$ = new Binary_Operator_Node($1, $3, strdup("*"), @2.first_line, @2.first_column);}
+                | Expression DIVIDE Expression {$$ = new Binary_Operator_Node($1, $3, strdup("/"), @2.first_line, @2.first_column);}
+                | Expression MOD Expression {$$ = new Binary_Operator_Node($1, $3, strdup("mod"), @2.first_line, @2.first_column);}
+                | Expression PLUS Expression {$$ = new Binary_Operator_Node($1, $3, strdup("+"), @2.first_line, @2.first_column);}
+                | Expression MINUS Expression {$$ = new Binary_Operator_Node($1, $3, strdup("-"), @2.first_line, @2.first_column);}
+                | Expression LESS Expression {$$ = new Binary_Operator_Node($1, $3, strdup("<"), @2.first_line, @2.first_column);}
+                | Expression LESS_OR_EQUAL Expression {$$ = new Binary_Operator_Node($1, $3, strdup("<="), @2.first_line, @2.first_column);}
+                | Expression GREATER Expression {$$ = new Binary_Operator_Node($1, $3, strdup(">"), @2.first_line, @2.first_column);}
+                | Expression GREATER_OR_EQUAL Expression {$$ = new Binary_Operator_Node($1, $3, strdup(">="), @2.first_line, @2.first_column);}
+                | Expression EQUAL Expression {$$ = new Binary_Operator_Node($1, $3, strdup("="), @2.first_line, @2.first_column);}
+                | Expression NOT_EQUAL Expression {$$ = new Binary_Operator_Node($1, $3, strdup("<>"), @2.first_line, @2.first_column);}
+                | NOT Expression {$$ = new Unary_Operator_Node($2, strdup("not"), @1.first_line, @1.first_column);}
+                | Expression AND Expression {$$ = new Binary_Operator_Node($1, $3, strdup("and"), @2.first_line, @2.first_column);}
+                | Expression OR Expression {$$ = new Binary_Operator_Node($1, $3, strdup("or"), @2.first_line, @2.first_column);}
+                | LiteralConstant {$$ = $1;}
+                | VariableReference {$$ = $1;}
+                | FunctionCall
+                ;
 
     /*
        misc
@@ -385,3 +362,4 @@ int main(int argc, const char *argv[]) {
            "|--------------------------------|\n");
     return 0;
 }
+            

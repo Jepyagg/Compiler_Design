@@ -14,7 +14,12 @@ class Program_body;
 class Declaration_Node;
 class Function_Node;
 class Statement_Node;
+class Print_Node;
+class Expression_Node;
 class Const_Node;
+class Binary_Operator_Node;
+class Unary_Operator_Node;
+class Variable_Reference_Node;
 class Id_Node;
 class Compound_Node;
 class Array_Node;
@@ -27,7 +32,12 @@ class VisitorBase {
         virtual void visit(class  Declaration_Node*e) = 0;
         virtual void visit(class  Function_Node*e) = 0;
         virtual void visit(class  Statement_Node*e) = 0;
+        virtual void visit(class  Print_Node*e) = 0;
+        virtual void visit(class  Expression_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
+        virtual void visit(class  Binary_Operator_Node*e) = 0;
+        virtual void visit(class  Unary_Operator_Node*e) = 0;
+        virtual void visit(class  Variable_Reference_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
         virtual void visit(class  Compound_Node*e) = 0;
         virtual void visit(class  Array_Node*e) = 0;
@@ -50,12 +60,58 @@ class Id_Node : public AstNode {
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
-class Const_Node : public AstNode { //save type and const
+class Expression_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        Expression_Node(int line, int col): line_num(line), col_num(col){};
+        virtual void accept(class VisitorBase &v) = 0;
+};
+
+class Const_Node : public Expression_Node { //save type and const
     public:
         char* str;
-        int line_num, col_num, state = 0;
+        int state = 0;
         vector<Array_Node *> * arr_list;
-        Const_Node(char*s, int sel, int line, int col): str(s), state(sel), line_num(line), col_num(col){};
+        Const_Node(char*s, int sel, int line, int col): str(s), state(sel), Expression_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Binary_Operator_Node : public Expression_Node {
+    public:
+        char* oper;
+        Expression_Node *leftoperand, *rightoperand;
+        Binary_Operator_Node(Expression_Node *left, Expression_Node *right, char *opt, int line, int col):leftoperand(left), rightoperand(right), oper(opt), Expression_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Unary_Operator_Node : public Expression_Node {
+    public:
+        char* oper;
+        Expression_Node *operand;
+        Unary_Operator_Node(Expression_Node *opd, char *opt, int line, int col):operand(opd), oper(opt), Expression_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+
+class Variable_Reference_Node : public Expression_Node {
+    public:
+        char* name;
+        vector<Expression_Node*> indices;
+        Variable_Reference_Node(int first_line, int first_column, char *name, vector<Expression_Node*> *indices);
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Statement_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        Statement_Node(int line, int col): line_num(line), col_num(col){};
+        virtual void accept(class VisitorBase &v) = 0;
+};
+
+class Print_Node : public Statement_Node {
+    public:
+        Expression_Node *expr;
+        Print_Node(Expression_Node *expr, int line, int col):expr(expr), Statement_Node(line, col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -85,11 +141,6 @@ class Declaration_Node : public AstNode {
         Const_Node* type_val;
         Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
-};
-
-class Statement_Node : public AstNode {
-    public:
-        int line_num, col_num;
 };
 
 class Compound_Node : public AstNode {

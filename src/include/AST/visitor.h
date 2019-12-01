@@ -10,7 +10,12 @@ class Visitor : public VisitorBase {
         void visit(class  Declaration_Node*e) override;
         void visit(class  Function_Node*e) override;
         void visit(class  Statement_Node*e) override;
+        void visit(class  Print_Node*e) override;
+        void visit(class  Expression_Node*e) override;
         void visit(class  Const_Node*e) override;
+        void visit(class  Binary_Operator_Node*e) override;
+        void visit(class  Unary_Operator_Node*e) override;
+        void visit(class  Variable_Reference_Node*e) override;
         void visit(class  Id_Node*e) override;
         void visit(class  Compound_Node*e) override;
         void visit(class  Array_Node*e) override;

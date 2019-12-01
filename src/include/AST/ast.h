@@ -20,6 +20,7 @@ class Print_Node;
 class Read_Node;
 class If_Node;
 class Return_Node;
+class Function_Call_Node;
 class Expression_Node;
 class Const_Node;
 class Binary_Operator_Node;
@@ -42,6 +43,7 @@ class VisitorBase {
         virtual void visit(class  Read_Node*e) = 0;
         virtual void visit(class  If_Node*e) = 0;
         virtual void visit(class  Return_Node*e) = 0;
+        virtual void visit(class  Function_Call_Node*e) = 0;
         virtual void visit(class  Expression_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
         virtual void visit(class  Binary_Operator_Node*e) = 0;
@@ -104,8 +106,8 @@ class Unary_Operator_Node : public Expression_Node {
 class Variable_Reference_Node : public Expression_Node {
     public:
         Id_Node* ident;
-        vector<Expression_Node*>* indices;
-        Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), indices(ind), Expression_Node(line, col){};
+        vector<Expression_Node*>* expr_list;
+        Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), expr_list(ind), Expression_Node(line, col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -165,6 +167,15 @@ class Return_Node : public Statement_Node {
         int line_num, col_num;
         Expression_Node *expr;
         Return_Node(Expression_Node *expression, int line, int col):expr(expression), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Function_Call_Node : public Statement_Node {
+    public:
+        int line_num, col_num;
+        Id_Node* ident;
+        vector<Expression_Node*>* expr_list;
+        Function_Call_Node(Id_Node* id, vector<Expression_Node*> *expression, int line, int col):ident(id), expr_list(expression), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

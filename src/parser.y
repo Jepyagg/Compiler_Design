@@ -55,6 +55,7 @@ static Visitor vs;
   Array_Node*                               arr;
   Formal_Node*                              form;
   Variable_Reference_Node*                  vari;
+  Function_Call_Node*                       func_call;
   If_Node*                                  iff;
 
   vector<Declaration_Node *>*               decl_list;
@@ -111,11 +112,12 @@ static Visitor vs;
 %type <func_list>                   FunctionList Functions
 %type <func>                        FunctionDeclaration
 %type <stat_list>                   StatementList Statements ElseOrNot
-%type <stat>                        Statement Simple Condition Return 
+%type <stat>                        Statement Simple Condition Return FunctionInvokation
 %type <expr_list>                   ExpressionList Expressions ArrForm
 %type <expr>                        Expression
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant ArrType
+%type <func_call>                   FunctionCall
 %type <vari>                        VariableReference
 %type <str_val>                     ScalarType ReturnType
 %type <arr_list>                    ArrDecl
@@ -223,7 +225,7 @@ Statement       : CompoundStatement {$$ = $1;}
                 | While
                 | For
                 | Return {$$ = $1;}
-                | FunctionInvokation
+                | FunctionInvokation {$$ = $1;}
                 ;
 
 CompoundStatement       : BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
@@ -265,11 +267,10 @@ For:
 Return      : RETURN Expression SEMICOLON {$$ = new Return_Node($2, @1.first_line, @1.first_column);}
             ;
 
-FunctionInvokation:
-    FunctionCall SEMICOLON
-;
+FunctionInvokation      : FunctionCall SEMICOLON {$$ = $1;}
+                        ;
 
-FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS
+FunctionCall    : ID L_PARENTHESIS ExpressionList R_PARENTHESIS {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$ = new Function_Call_Node(tmp, $3, @1.first_line, @1.first_column);}
                 ;
 
 ExpressionList      : Epsilon {$$ = NULL;}

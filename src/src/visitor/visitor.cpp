@@ -192,6 +192,18 @@ void Visitor::visit(Return_Node *m) {
     indent_space--;
 }
 
+void Visitor::visit(Function_Call_Node *m) {
+    space_plus();
+    cout << "function call statement <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
+    if(m->expr_list != 0) {
+        for (auto tmp : *m->expr_list) {
+            indent_space++;
+            tmp->accept(*this);
+            indent_space--;
+        }
+    }
+}
+
 void Visitor::visit(Expression_Node *m) {
     printf("expression\n");
 }
@@ -216,8 +228,8 @@ void Visitor::visit(Unary_Operator_Node *m) {
 void Visitor::visit(Variable_Reference_Node *m) {
     space_plus();
     cout << "variable reference <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
-    if(m->indices != 0) {
-        for (auto tmp : *m->indices) {
+    if(m->expr_list != 0) {
+        for (auto tmp : *m->expr_list) {
             space_plus();
             cout << "[\n";
             indent_space++;

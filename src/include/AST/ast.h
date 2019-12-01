@@ -14,9 +14,11 @@ class Program_body;
 class Declaration_Node;
 class Function_Node;
 class Statement_Node;
-class Print_Node;
+class Compound_Node;
 class Assignment_Node;
+class Print_Node;
 class Read_Node;
+class If_Node;
 class Return_Node;
 class Expression_Node;
 class Const_Node;
@@ -24,7 +26,6 @@ class Binary_Operator_Node;
 class Unary_Operator_Node;
 class Variable_Reference_Node;
 class Id_Node;
-class Compound_Node;
 class Array_Node;
 class Formal_Node;
 
@@ -35,9 +36,11 @@ class VisitorBase {
         virtual void visit(class  Declaration_Node*e) = 0;
         virtual void visit(class  Function_Node*e) = 0;
         virtual void visit(class  Statement_Node*e) = 0;
-        virtual void visit(class  Print_Node*e) = 0;
+        virtual void visit(class  Compound_Node*e) = 0;
         virtual void visit(class  Assignment_Node*e) = 0;
+        virtual void visit(class  Print_Node*e) = 0;
         virtual void visit(class  Read_Node*e) = 0;
+        virtual void visit(class  If_Node*e) = 0;
         virtual void visit(class  Return_Node*e) = 0;
         virtual void visit(class  Expression_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
@@ -45,7 +48,6 @@ class VisitorBase {
         virtual void visit(class  Unary_Operator_Node*e) = 0;
         virtual void visit(class  Variable_Reference_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
-        virtual void visit(class  Compound_Node*e) = 0;
         virtual void visit(class  Array_Node*e) = 0;
         virtual void visit(class  Formal_Node*e) = 0;
 };
@@ -109,37 +111,60 @@ class Variable_Reference_Node : public Expression_Node {
 
 class Statement_Node : public AstNode {
     public:
-        int line_num, col_num;
-        Statement_Node(int line, int col): line_num(line), col_num(col){};
+        // int line_num, col_num;
+        // Statement_Node(int line, int col): line_num(line), col_num(col){};
         virtual void accept(class VisitorBase &v) = 0;
 };
 
-class Print_Node : public Statement_Node {
+class Compound_Node : public Statement_Node {
     public:
-        Expression_Node *expr;
-        Print_Node(Expression_Node *expr, int line, int col):expr(expr), Statement_Node(line, col){};
+        int line_num, col_num;
+        vector<Declaration_Node *>* decl_list;
+        vector<Statement_Node *>* stat_list;
+        Compound_Node(vector<Declaration_Node *> *decl, vector<Statement_Node *> *stat, int line, int col):decl_list(decl), stat_list(stat), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Assignment_Node : public Statement_Node {
     public:
+        int line_num, col_num;
         Variable_Reference_Node *var;
         Expression_Node *expr;
-        Assignment_Node(Variable_Reference_Node *value, Expression_Node *expression, int line, int col):var(value), expr(expression), Statement_Node(line, col){};
+        Assignment_Node(Variable_Reference_Node *value, Expression_Node *expression, int line, int col):var(value), expr(expression), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Print_Node : public Statement_Node {
+    public:
+        int line_num, col_num;
+        Expression_Node *expr;
+        Print_Node(Expression_Node *expr, int line, int col):expr(expr), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Read_Node : public Statement_Node {
     public:
+        int line_num, col_num;
         Variable_Reference_Node *var;
-        Read_Node(Variable_Reference_Node *value, int line, int col):var(value), Statement_Node(line, col){};
+        Read_Node(Variable_Reference_Node *value, int line, int col):var(value), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class If_Node : public Statement_Node {
+    public:
+        int line_num, col_num;
+        Expression_Node *expr;
+        vector<Statement_Node *>* stat_list;
+        vector<Statement_Node *>* stat2_list;
+        If_Node(Expression_Node *expression, vector<Statement_Node *>* stat, vector<Statement_Node *>* stat2, int line, int col):expr(expression), stat_list(stat), stat2_list(stat2), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Return_Node : public Statement_Node {
     public:
+        int line_num, col_num;
         Expression_Node *expr;
-        Return_Node(Expression_Node *expression, int line, int col):expr(expression), Statement_Node(line, col){};
+        Return_Node(Expression_Node *expression, int line, int col):expr(expression), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -168,15 +193,6 @@ class Declaration_Node : public AstNode {
         vector<Id_Node *> * id_list;
         Const_Node* type_val;
         Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
-        void accept(VisitorBase &v) { v.visit(this); }
-};
-
-class Compound_Node : public AstNode {
-    public:
-        int line_num, col_num;
-        vector<Declaration_Node *>* decl_list;
-        vector<Statement_Node *>* stat_list;
-        Compound_Node(vector<Declaration_Node *> *decl, vector<Statement_Node *> *stat, int line, int col):decl_list(decl), stat_list(stat), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

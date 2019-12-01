@@ -55,6 +55,7 @@ static Visitor vs;
   Array_Node*                               arr;
   Formal_Node*                              form;
   Variable_Reference_Node*                  vari;
+  If_Node*                                  iff;
 
   vector<Declaration_Node *>*               decl_list;
   vector<Function_Node *>*                  func_list;
@@ -109,8 +110,8 @@ static Visitor vs;
 %type <decl>                        Declaration
 %type <func_list>                   FunctionList Functions
 %type <func>                        FunctionDeclaration
-%type <stat_list>                   StatementList Statements
-%type <stat>                        Statement Simple Return
+%type <stat_list>                   StatementList Statements ElseOrNot
+%type <stat>                        Statement Simple Condition Return 
 %type <expr_list>                   ExpressionList Expressions ArrForm
 %type <expr>                        Expression
 %type <id_list>                     IdList
@@ -216,19 +217,14 @@ LiteralConstant     : INT_LITERAL {$$ = new Const_Node($1, 1, yylloc.first_line,
        Statements
                   */
 
-Statement:
-    CompoundStatement
+Statement       : CompoundStatement {$$ = $1;}
                 | Simple {$$ = $1;}
-    |
-    Condition
-    |
-    While
-    |
-    For
+                | Condition {$$ = $1;}
+                | While
+                | For
                 | Return {$$ = $1;}
-    |
-    FunctionInvokation
-;
+                | FunctionInvokation
+                ;
 
 CompoundStatement       : BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
                         ;
@@ -247,19 +243,12 @@ ArrForm     : L_BRACKET Expression R_BRACKET {$$ = new vector<Expression_Node*>(
             | ArrForm L_BRACKET Expression R_BRACKET {$1->push_back($3); $$ = $1;}
             ;
 
-Condition:
-    IF Expression THEN
-    StatementList
-    ElseOrNot
-    END IF
-;
+Condition       : IF Expression THEN StatementList ElseOrNot END IF {$$ = new If_Node($2, $4, $5, @1.first_line, @1.first_column);}
+                ;
 
-ElseOrNot:
-    ELSE
-    StatementList
-    |
-    Epsilon
-;
+ElseOrNot       : ELSE StatementList {$$ = $2;}
+                | Epsilon {$$ = NULL;}
+                ;
 
 While:
     WHILE Expression DO

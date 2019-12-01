@@ -138,19 +138,19 @@ void Visitor::visit(Statement_Node *m) {
     printf("statement\n");
 }
 
-void Visitor::visit(Print_Node *m) {
-    space_plus();
-    cout << "print statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
-    indent_space++;
-    m->expr->accept(*this);
-    indent_space--;
-}
-
 void Visitor::visit(Assignment_Node *m) {
     space_plus();
     cout << "assignment statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
     indent_space++;
     m->var->accept(*this);
+    m->expr->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Print_Node *m) {
+    space_plus();
+    cout << "print statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
     m->expr->accept(*this);
     indent_space--;
 }
@@ -163,6 +163,27 @@ void Visitor::visit(Read_Node *m) {
     indent_space--;
 }
 
+void Visitor::visit(If_Node *m) {
+    space_plus();
+    cout << "if statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->expr->accept(*this);
+    vector<Statement_Node *>* tmp = m->stat_list;
+    vector<Statement_Node *>* tmp2 = m->stat2_list;
+    for (auto v : *tmp) {
+        v->accept(*this);
+    }
+    indent_space--;
+    if (tmp2 == 0) return;
+    space_plus();
+    cout << "else\n";
+    indent_space++;
+    for (auto v2 : *tmp2) {
+        v2->accept(*this);
+    }
+    indent_space--;
+}
+
 void Visitor::visit(Return_Node *m) {
     space_plus();
     cout << "return statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
@@ -172,7 +193,7 @@ void Visitor::visit(Return_Node *m) {
 }
 
 void Visitor::visit(Expression_Node *m) {
-    printf("statement\n");
+    printf("expression\n");
 }
 
 void Visitor::visit(Binary_Operator_Node *m) {

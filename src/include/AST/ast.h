@@ -15,6 +15,9 @@ class Declaration_Node;
 class Function_Node;
 class Statement_Node;
 class Print_Node;
+class Assignment_Node;
+class Read_Node;
+class Return_Node;
 class Expression_Node;
 class Const_Node;
 class Binary_Operator_Node;
@@ -33,6 +36,9 @@ class VisitorBase {
         virtual void visit(class  Function_Node*e) = 0;
         virtual void visit(class  Statement_Node*e) = 0;
         virtual void visit(class  Print_Node*e) = 0;
+        virtual void visit(class  Assignment_Node*e) = 0;
+        virtual void visit(class  Read_Node*e) = 0;
+        virtual void visit(class  Return_Node*e) = 0;
         virtual void visit(class  Expression_Node*e) = 0;
         virtual void visit(class  Const_Node*e) = 0;
         virtual void visit(class  Binary_Operator_Node*e) = 0;
@@ -95,9 +101,9 @@ class Unary_Operator_Node : public Expression_Node {
 
 class Variable_Reference_Node : public Expression_Node {
     public:
-        char* name;
-        vector<Expression_Node*> indices;
-        Variable_Reference_Node(int first_line, int first_column, char *name, vector<Expression_Node*> *indices);
+        Id_Node* ident;
+        vector<Expression_Node*>* indices;
+        Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), indices(ind), Expression_Node(line, col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -112,6 +118,28 @@ class Print_Node : public Statement_Node {
     public:
         Expression_Node *expr;
         Print_Node(Expression_Node *expr, int line, int col):expr(expr), Statement_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Assignment_Node : public Statement_Node {
+    public:
+        Variable_Reference_Node *var;
+        Expression_Node *expr;
+        Assignment_Node(Variable_Reference_Node *value, Expression_Node *expression, int line, int col):var(value), expr(expression), Statement_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Read_Node : public Statement_Node {
+    public:
+        Variable_Reference_Node *var;
+        Read_Node(Variable_Reference_Node *value, int line, int col):var(value), Statement_Node(line, col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
+class Return_Node : public Statement_Node {
+    public:
+        Expression_Node *expr;
+        Return_Node(Expression_Node *expression, int line, int col):expr(expression), Statement_Node(line, col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

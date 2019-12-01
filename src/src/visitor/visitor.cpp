@@ -146,6 +146,31 @@ void Visitor::visit(Print_Node *m) {
     indent_space--;
 }
 
+void Visitor::visit(Assignment_Node *m) {
+    space_plus();
+    cout << "assignment statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->var->accept(*this);
+    m->expr->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Read_Node *m) {
+    space_plus();
+    cout << "read statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->var->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Return_Node *m) {
+    space_plus();
+    cout << "return statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+    indent_space++;
+    m->expr->accept(*this);
+    indent_space--;
+}
+
 void Visitor::visit(Expression_Node *m) {
     printf("statement\n");
 }
@@ -168,7 +193,19 @@ void Visitor::visit(Unary_Operator_Node *m) {
 }
 
 void Visitor::visit(Variable_Reference_Node *m) {
-    printf("statement\n");
+    space_plus();
+    cout << "variable reference <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
+    if(m->indices != 0) {
+        for (auto tmp : *m->indices) {
+            space_plus();
+            cout << "[\n";
+            indent_space++;
+            tmp->accept(*this);
+            indent_space--;
+            space_plus();
+            cout << "]\n";
+        }
+    }
 }
 
 void Visitor::visit(Function_Node *m) {

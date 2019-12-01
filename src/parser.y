@@ -110,8 +110,8 @@ static Visitor vs;
 %type <func_list>                   FunctionList Functions
 %type <func>                        FunctionDeclaration
 %type <stat_list>                   StatementList Statements
-%type <stat>                        Statement Simple
-%type <expr_list>                   ExpressionList Expressions
+%type <stat>                        Statement Simple Return
+%type <expr_list>                   ExpressionList Expressions ArrForm
 %type <expr>                        Expression
 %type <id_list>                     IdList
 %type <Const>                       TypeOrConstant Type LiteralConstant ArrType
@@ -225,8 +225,7 @@ Statement:
     While
     |
     For
-    |
-    Return
+                | Return {$$ = $1;}
     |
     FunctionInvokation
 ;
@@ -234,22 +233,19 @@ Statement:
 CompoundStatement       : BEGIN_ DeclarationList StatementList END {$$ = new Compound_Node($2, $3, @1.first_line, @1.first_column);}
                         ;
 
-Simple      : VariableReference ASSIGN Expression SEMICOLON
+Simple      : VariableReference ASSIGN Expression SEMICOLON {$$ = new Assignment_Node($1, $3, @2.first_line, @2.first_column);}
             | PRINT Expression SEMICOLON {$$ = new Print_Node($2, @1.first_line, @1.first_column);}
-            | READ VariableReference SEMICOLON
+            | READ VariableReference SEMICOLON { $$ = new Read_Node($2, @1.first_line, @1.first_column);}
             ;
 
-VariableReference:
-    ID
-    |
-    ID ArrForm
-;
+VariableReference       : ID {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$ = new Variable_Reference_Node(tmp, 
+                        NULL, @1.first_line, @1.first_column);}
+                        | ID ArrForm {Id_Node* tmp = new Id_Node($1, yylloc.first_line, yylloc.first_column); $$ = new Variable_Reference_Node(tmp, $2, @1.first_line, @1.first_column);}
+                        ;
 
-ArrForm:
-    L_BRACKET Expression R_BRACKET
-    |
-    ArrForm L_BRACKET Expression R_BRACKET
-;
+ArrForm     : L_BRACKET Expression R_BRACKET {$$ = new vector<Expression_Node*>(); $$->push_back($2);}
+            | ArrForm L_BRACKET Expression R_BRACKET {$1->push_back($3); $$ = $1;}
+            ;
 
 Condition:
     IF Expression THEN
@@ -277,9 +273,8 @@ For:
     END DO
 ;
 
-Return:
-    RETURN Expression SEMICOLON
-;
+Return      : RETURN Expression SEMICOLON {$$ = new Return_Node($2, @1.first_line, @1.first_column);}
+            ;
 
 FunctionInvokation:
     FunctionCall SEMICOLON

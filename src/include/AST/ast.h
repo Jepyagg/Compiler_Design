@@ -13,6 +13,16 @@ class AstProgram;
 class Program_body;
 class Declaration_Node;
 class Function_Node;
+
+// Expression
+class Expression_Node;
+class Const_Node;
+class Binary_Operator_Node;
+class Unary_Operator_Node;
+class Variable_Reference_Node;
+class Function_Call_expr_Node;
+
+//Statement
 class Statement_Node;
 class Compound_Node;
 class Assignment_Node;
@@ -23,12 +33,6 @@ class While_Node;
 class For_Node;
 class Return_Node;
 class Function_Call_Node;
-class Expression_Node;
-class Const_Node;
-class Binary_Operator_Node;
-class Unary_Operator_Node;
-class Variable_Reference_Node;
-class Function_Call_expr_Node;
 class Id_Node;
 class Array_Node;
 class Formal_Node;
@@ -39,6 +43,12 @@ class VisitorBase {
         virtual void visit(class  Program_body*e) = 0;
         virtual void visit(class  Declaration_Node*e) = 0;
         virtual void visit(class  Function_Node*e) = 0;
+        virtual void visit(class  Expression_Node*e) = 0;
+        virtual void visit(class  Const_Node*e) = 0;
+        virtual void visit(class  Binary_Operator_Node*e) = 0;
+        virtual void visit(class  Unary_Operator_Node*e) = 0;
+        virtual void visit(class  Variable_Reference_Node*e) = 0;
+        virtual void visit(class  Function_Call_expr_Node*e) = 0;
         virtual void visit(class  Statement_Node*e) = 0;
         virtual void visit(class  Compound_Node*e) = 0;
         virtual void visit(class  Assignment_Node*e) = 0;
@@ -49,12 +59,6 @@ class VisitorBase {
         virtual void visit(class  For_Node*e) = 0;
         virtual void visit(class  Return_Node*e) = 0;
         virtual void visit(class  Function_Call_Node*e) = 0;
-        virtual void visit(class  Expression_Node*e) = 0;
-        virtual void visit(class  Const_Node*e) = 0;
-        virtual void visit(class  Binary_Operator_Node*e) = 0;
-        virtual void visit(class  Unary_Operator_Node*e) = 0;
-        virtual void visit(class  Variable_Reference_Node*e) = 0;
-        virtual void visit(class  Function_Call_expr_Node*e) = 0;
         virtual void visit(class  Id_Node*e) = 0;
         virtual void visit(class  Array_Node*e) = 0;
         virtual void visit(class  Formal_Node*e) = 0;
@@ -67,19 +71,8 @@ class AstNode {
         ~AstNode(){};
 };
 
-class Id_Node : public AstNode {
-    public:
-        char* identifier;
-        int line_num, col_num;
-        Const_Node* const_val;
-        Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
-        void accept(VisitorBase &v) { v.visit(this); }
-};
-
 class Expression_Node : public AstNode {
     public:
-        int line_num, col_num;
-        Expression_Node(int line, int col): line_num(line), col_num(col){};
         virtual void accept(class VisitorBase &v) = 0;
 };
 
@@ -87,33 +80,37 @@ class Const_Node : public Expression_Node { //save type and const
     public:
         char* str;
         int state = 0;
+        int line_num, col_num;
         vector<Array_Node *> * arr_list;
-        Const_Node(char*s, int sel, int line, int col): str(s), state(sel), Expression_Node(line, col){};
+        Const_Node(char*s, int sel, int line, int col): str(s), state(sel), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Binary_Operator_Node : public Expression_Node {
     public:
         char* oper;
+        int line_num, col_num;
         Expression_Node *leftoperand, *rightoperand;
-        Binary_Operator_Node(Expression_Node *left, Expression_Node *right, char *opt, int line, int col):leftoperand(left), rightoperand(right), oper(opt), Expression_Node(line, col){};
+        Binary_Operator_Node(Expression_Node *left, Expression_Node *right, char *opt, int line, int col):leftoperand(left), rightoperand(right), oper(opt), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Unary_Operator_Node : public Expression_Node {
     public:
         char* oper;
+        int line_num, col_num;
         Expression_Node *operand;
-        Unary_Operator_Node(Expression_Node *opd, char *opt, int line, int col):operand(opd), oper(opt), Expression_Node(line, col){};
+        Unary_Operator_Node(Expression_Node *opd, char *opt, int line, int col):operand(opd), oper(opt), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 
 class Variable_Reference_Node : public Expression_Node {
     public:
+        int line_num, col_num;
         Id_Node* ident;
         vector<Expression_Node*>* expr_list;
-        Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), expr_list(ind), Expression_Node(line, col){};
+        Variable_Reference_Node(Id_Node *name, vector<Expression_Node*> *ind, int line, int col):ident(name), expr_list(ind), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -122,14 +119,12 @@ class Function_Call_expr_Node : public Expression_Node {
         int line_num, col_num;
         Id_Node* ident;
         vector<Expression_Node*>* expr_list;
-        Function_Call_expr_Node(Id_Node* id, vector<Expression_Node*> *expression, int line, int col):ident(id), expr_list(expression), Expression_Node(line, col){};
+        Function_Call_expr_Node(Id_Node* id, vector<Expression_Node*> *expression, int line, int col):ident(id), expr_list(expression), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
 class Statement_Node : public AstNode {
     public:
-        // int line_num, col_num;
-        // Statement_Node(int line, int col): line_num(line), col_num(col){};
         virtual void accept(class VisitorBase &v) = 0;
 };
 
@@ -214,31 +209,20 @@ class Function_Call_Node : public Statement_Node {
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
+class Id_Node : public AstNode {
+    public:
+        char* identifier;
+        int line_num, col_num;
+        Const_Node* const_val;
+        Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
 class Array_Node : public AstNode {
     public:
         char* str_start;
         char* str_end;
         Array_Node(char*s, char*e):str_start(s), str_end(e){};
-        void accept(VisitorBase &v) { v.visit(this); }
-};
-
-class AstProgram : public AstNode {
-    public:
-        char* name;
-        int line_num, col_num;
-        Id_Node* identifier;
-        Program_body* p_body;
-        AstProgram(Id_Node* id, int line, int col, Program_body* pb): identifier(id), line_num(line), col_num(col), p_body(pb){};
-        void accept(VisitorBase &v) { v.visit(this); }
-
-};
-
-class Declaration_Node : public AstNode {
-    public:
-        int line_num, col_num;
-        vector<Id_Node *> * id_list;
-        Const_Node* type_val;
-        Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
@@ -263,6 +247,15 @@ class Function_Node : public AstNode {
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
+class Declaration_Node : public AstNode {
+    public:
+        int line_num, col_num;
+        vector<Id_Node *> * id_list;
+        Const_Node* type_val;
+        Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
+        void accept(VisitorBase &v) { v.visit(this); }
+};
+
 class Program_body : public AstNode {
     public:
         int line_num, col_num;
@@ -273,5 +266,15 @@ class Program_body : public AstNode {
         void accept(VisitorBase &v) { v.visit(this); }
 };
 
+class AstProgram : public AstNode {
+    public:
+        char* name;
+        int line_num, col_num;
+        Id_Node* identifier;
+        Program_body* p_body;
+        AstProgram(Id_Node* id, int line, int col, Program_body* pb): identifier(id), line_num(line), col_num(col), p_body(pb){};
+        void accept(VisitorBase &v) { v.visit(this); }
+
+};
 
 #endif

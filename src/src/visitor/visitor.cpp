@@ -48,6 +48,42 @@ void Visitor::visit(Declaration_Node *m) {
     }
 }
 
+void Visitor::visit(Function_Node *m) {
+    space_plus();
+    cout << "function declaration <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << " ";
+    if(m->returntype != 0) {
+        cout << m->returntype << " (";
+    } else {
+        cout << "void (";
+    }
+    vector<Formal_Node *>* tmp = m->form_list;
+    if(tmp != 0) {
+        for(auto v : *tmp) {
+            v->accept(*this);
+        }
+        cout << ")\n";
+        form_state = 1;
+        for(auto v : *tmp) {
+            indent_space++;
+            v->accept(*this);
+            indent_space--;
+        }
+        form_state = 0;
+        con = 0;
+    } else {
+        cout << ")\n";
+    }
+    if(m->comp != 0) {
+        indent_space++;
+        m->comp->accept(*this);
+        indent_space--;
+    }
+}
+
+void Visitor::visit(Expression_Node *m) {
+    printf("expression\n");
+}
+
 void Visitor::visit(Const_Node *m) {
     if(m->state != 5) {
         space_plus();
@@ -77,6 +113,55 @@ void Visitor::visit(Const_Node *m) {
     }
 }
 
+void Visitor::visit(Binary_Operator_Node *m) {
+    space_plus();
+    cout << "binary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
+    indent_space++;
+    m->leftoperand->accept(*this);
+    m->rightoperand->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Unary_Operator_Node *m) {
+    space_plus();
+    cout << "unary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
+    indent_space++;
+    m->operand->accept(*this);
+    indent_space--;
+}
+
+void Visitor::visit(Variable_Reference_Node *m) {
+    space_plus();
+    cout << "variable reference <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
+    if(m->expr_list != 0) {
+        for (auto tmp : *m->expr_list) {
+            space_plus();
+            cout << "[\n";
+            indent_space++;
+            tmp->accept(*this);
+            indent_space--;
+            space_plus();
+            cout << "]\n";
+        }
+    }
+}
+
+void Visitor::visit(Function_Call_expr_Node *m) {
+    space_plus();
+    cout << "function call statement <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
+    if(m->expr_list != 0) {
+        for (auto tmp : *m->expr_list) {
+            indent_space++;
+            tmp->accept(*this);
+            indent_space--;
+        }
+    }
+}
+
+void Visitor::visit(Statement_Node *m) {
+    printf("statement\n");
+}
+
 void Visitor::visit(Compound_Node *m) {
     space_plus();
     cout << "compound statement <line: " << m->line_num << ", col: " << m->col_num << ">\n";
@@ -96,46 +181,6 @@ void Visitor::visit(Compound_Node *m) {
             indent_space--;
         }
     }
-}
-
-void Visitor::visit(Array_Node *m) {
-    cout << "[" << m->str_start << "..." << m->str_end << "]";
-}
-
-void Visitor::visit(Formal_Node *m) { //確認function_prototype 是要印什麼
-    if(form_state != 0) {
-        space_plus();
-        cout << "declaration <line: " << m->line_num << ", col: " << m->col_num << ">\n";
-        vector<Id_Node *>* tmp = m->id_list;
-        for(auto v : *tmp) {
-            v->const_val = m->type_val;
-            indent_space++;
-            v->accept(*this);
-            indent_space--;
-        }
-    } else {
-        vector<Id_Node *>* tmp = m->id_list;
-        for(auto v : *tmp) {
-            v->const_val = m->type_val;
-            if(con > 0 ) {
-                cout << ", ";
-            }
-            con++;
-            cout << v->const_val->str;
-            if(v->const_val->state == 5) {
-                vector<Array_Node*>* tmp2 = v->const_val->arr_list;
-                for(auto v2 : *tmp2) {
-                    int end = atoi(v2->str_end);
-                    int start = atoi(v2->str_start);
-                    cout << "[" << end - start << "]";
-                }
-            }
-        }
-    }
-}
-
-void Visitor::visit(Statement_Node *m) {
-    printf("statement\n");
 }
 
 void Visitor::visit(Assignment_Node *m) {
@@ -239,87 +284,6 @@ void Visitor::visit(Function_Call_Node *m) {
     }
 }
 
-void Visitor::visit(Expression_Node *m) {
-    printf("expression\n");
-}
-
-void Visitor::visit(Binary_Operator_Node *m) {
-    space_plus();
-    cout << "binary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
-    indent_space++;
-    m->leftoperand->accept(*this);
-    m->rightoperand->accept(*this);
-    indent_space--;
-}
-
-void Visitor::visit(Unary_Operator_Node *m) {
-    space_plus();
-    cout << "unary operator <line: " << m->line_num << ", col: " << m->col_num << "> " << m->oper << '\n';
-    indent_space++;
-    m->operand->accept(*this);
-    indent_space--;
-}
-
-void Visitor::visit(Variable_Reference_Node *m) {
-    space_plus();
-    cout << "variable reference <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
-    if(m->expr_list != 0) {
-        for (auto tmp : *m->expr_list) {
-            space_plus();
-            cout << "[\n";
-            indent_space++;
-            tmp->accept(*this);
-            indent_space--;
-            space_plus();
-            cout << "]\n";
-        }
-    }
-}
-
-void Visitor::visit(Function_Call_expr_Node *m) {
-    space_plus();
-    cout << "function call statement <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << '\n';
-    if(m->expr_list != 0) {
-        for (auto tmp : *m->expr_list) {
-            indent_space++;
-            tmp->accept(*this);
-            indent_space--;
-        }
-    }
-}
-
-void Visitor::visit(Function_Node *m) {
-    space_plus();
-    cout << "function declaration <line: " << m->line_num << ", col: " << m->col_num << "> " << m->ident->identifier << " ";
-    if(m->returntype != 0) {
-        cout << m->returntype << " (";
-    } else {
-        cout << "void (";
-    }
-    vector<Formal_Node *>* tmp = m->form_list;
-    if(tmp != 0) {
-        for(auto v : *tmp) {
-            v->accept(*this);
-        }
-        cout << ")\n";
-        form_state = 1;
-        for(auto v : *tmp) {
-            indent_space++;
-            v->accept(*this);
-            indent_space--;
-        }
-        form_state = 0;
-        con = 0;
-    } else {
-        cout << ")\n";
-    }
-    if(m->comp != 0) {
-        indent_space++;
-        m->comp->accept(*this);
-        indent_space--;
-    }
-}
-
 void Visitor::visit(Id_Node *m) {
     Const_Node* tmp = m->const_val;
     space_plus();
@@ -350,5 +314,41 @@ void Visitor::visit(Id_Node *m) {
         tmp->accept(*this); //array
     } else if(tmp->state == 6) {
         cout << "integer\n";
+    }
+}
+
+void Visitor::visit(Array_Node *m) {
+    cout << "[" << m->str_start << "..." << m->str_end << "]";
+}
+
+void Visitor::visit(Formal_Node *m) { //確認function_prototype 是要印什麼
+    if(form_state != 0) {
+        space_plus();
+        cout << "declaration <line: " << m->line_num << ", col: " << m->col_num << ">\n";
+        vector<Id_Node *>* tmp = m->id_list;
+        for(auto v : *tmp) {
+            v->const_val = m->type_val;
+            indent_space++;
+            v->accept(*this);
+            indent_space--;
+        }
+    } else {
+        vector<Id_Node *>* tmp = m->id_list;
+        for(auto v : *tmp) {
+            v->const_val = m->type_val;
+            if(con > 0 ) {
+                cout << ", ";
+            }
+            con++;
+            cout << v->const_val->str;
+            if(v->const_val->state == 5) {
+                vector<Array_Node*>* tmp2 = v->const_val->arr_list;
+                for(auto v2 : *tmp2) {
+                    int end = atoi(v2->str_end);
+                    int start = atoi(v2->str_start);
+                    cout << "[" << end - start << "]";
+                }
+            }
+        }
     }
 }

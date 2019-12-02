@@ -214,7 +214,7 @@ class Id_Node : public AstNode {
         char* identifier;
         int line_num, col_num;
         Const_Node* const_val;
-        Id_Node(char* id, int line, int col):identifier(strdup(id)), line_num(line), col_num(col){};
+        Id_Node(char* id, int line, int col):identifier(id), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
 };
 

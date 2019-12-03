@@ -9,7 +9,7 @@ CPP_FILES 	:= $(AST) $(VST)
 all: parser
 
 parser: parser.c scanner.c $(CPP_FILES)
-	g++ -o parser parser.c scanner.c $(CPP_FILES) -Iinclude -lfl -ly 
+	g++ -g -o parser parser.c scanner.c $(CPP_FILES) -Iinclude -lfl -ly 
 
 parser.c: parser.y
 	bison -o parser.c --defines=parser.h -v -d parser.y

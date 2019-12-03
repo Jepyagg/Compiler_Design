@@ -76,14 +76,36 @@ class Expression_Node : public AstNode {
         virtual void accept(class VisitorBase &v) = 0;
 };
 
+class Array_Node : public AstNode {
+    public:
+        char* str_start;
+        char* str_end;
+        Array_Node(char*s, char*e):str_start(s), str_end(e){};
+        void accept(VisitorBase &v) { v.visit(this); }
+        ~Array_Node(){
+            free(str_start);
+            free(str_end);
+        }
+};
+
 class Const_Node : public Expression_Node { //save type and const
     public:
         char* str;
         int state = 0;
         int line_num, col_num;
-        vector<Array_Node *> * arr_list;
+        vector<Array_Node *> * arr_list = NULL;
         Const_Node(char*s, int sel, int line, int col): str(s), state(sel), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
+        ~Const_Node() {
+            free(str);
+            if(arr_list != NULL) {
+                for(auto tmp : *arr_list) {
+                    cout <<"arr_list\n";
+                    delete tmp;
+                }
+                delete arr_list;
+            }
+        }
 };
 
 class Binary_Operator_Node : public Expression_Node {
@@ -216,23 +238,27 @@ class Id_Node : public AstNode {
         Const_Node* const_val;
         Id_Node(char* id, int line, int col):identifier(id), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
-};
-
-class Array_Node : public AstNode {
-    public:
-        char* str_start;
-        char* str_end;
-        Array_Node(char*s, char*e):str_start(s), str_end(e){};
-        void accept(VisitorBase &v) { v.visit(this); }
+        ~Id_Node() {
+            free(identifier);
+        }
 };
 
 class Formal_Node : public AstNode {
     public:
         int line_num, col_num;
-        vector<Id_Node *> * id_list;
+        vector<Id_Node *> * id_list = NULL;
         Const_Node* type_val;
         Formal_Node(vector<Id_Node *> * id, Const_Node* type, int line, int col):id_list(id), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
+        ~Formal_Node() {
+            delete type_val;
+            if(id_list != NULL) {
+                for(auto tmp : *id_list) {
+                    delete tmp;
+                }
+                delete id_list;
+            }
+        }
 };
 
 class Function_Node : public AstNode {
@@ -240,41 +266,82 @@ class Function_Node : public AstNode {
         char* name;
         char* returntype;
         int line_num, col_num;
-        Id_Node* ident;
+        Id_Node* ident, *end_id;
         Compound_Node* comp;
-        vector<Formal_Node *>* form_list;
-        Function_Node(Id_Node* id, vector<Formal_Node *>* form, Compound_Node* com, char* type, int line, int col): ident(id), form_list(form), comp(com), returntype(type), line_num(line), col_num(col){};
+        vector<Formal_Node *>* form_list = NULL;
+        Function_Node(Id_Node* id, Id_Node* id2, vector<Formal_Node *>* form, Compound_Node* com, char* type, int line, int col): ident(id), end_id(id2), form_list(form), comp(com), returntype(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
+        ~Function_Node() {
+            free(returntype);
+            delete ident;
+            delete end_id;
+            delete comp;
+            if(form_list != NULL) {
+                for(auto tmp : *form_list) {
+                    delete tmp;
+                }
+                delete form_list;
+            }
+        }
 };
 
 class Declaration_Node : public AstNode {
     public:
         int line_num, col_num;
-        vector<Id_Node *> * id_list;
+        vector<Id_Node *> * id_list = NULL;
         Const_Node* type_val;
         Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
+        ~Declaration_Node() {
+            // cout << "Declaration_Node\n";
+            delete type_val;
+            if(id_list != NULL) {
+                for(auto tmp : *id_list) {
+                    delete tmp;
+                }
+                delete id_list;
+            }
+        }
 };
 
 class Program_body : public AstNode {
     public:
         int line_num, col_num;
-        vector<Declaration_Node *>* decl_list;
-        vector<Function_Node *>* func_list;
+        vector<Declaration_Node *>* decl_list = NULL;
+        vector<Function_Node *>* func_list = NULL;
         Compound_Node* comp;
         Program_body(vector<Declaration_Node *> *decl, vector<Function_Node *>* func, Compound_Node* com):decl_list(decl), func_list(func), comp(com){};
         void accept(VisitorBase &v) { v.visit(this); }
+        ~Program_body() {
+            // cout << "Program_body\n";
+            if(decl_list != NULL) {
+                for(auto tmp : *decl_list) {
+                    delete tmp;
+                }
+                delete decl_list;
+            }
+            if(func_list != NULL) {
+                for(auto tmp : *func_list) {
+                    delete tmp;
+                }
+                delete func_list;
+            }
+            delete comp;
+        }
 };
 
 class AstProgram : public AstNode {
     public:
-        char* name;
         int line_num, col_num;
-        Id_Node* identifier;
+        Id_Node* identifier, *end_id;
         Program_body* p_body;
-        AstProgram(Id_Node* id, int line, int col, Program_body* pb): identifier(id), line_num(line), col_num(col), p_body(pb){};
+        AstProgram(Id_Node* id, Id_Node* id2, int line, int col, Program_body* pb): identifier(id), end_id(id2), line_num(line), col_num(col), p_body(pb){};
         void accept(VisitorBase &v) { v.visit(this); }
-
+        ~AstProgram() {
+            delete identifier;
+            delete end_id;
+            delete p_body;
+        }
 };
 
 #endif

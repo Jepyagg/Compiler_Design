@@ -34,6 +34,7 @@ extern char *yytext;
 extern int yylex(void);
 static void yyerror(const char *msg);
 
+static AstProgram *root;
 static Visitor vs;
 
 %}
@@ -131,10 +132,10 @@ static Visitor vs;
        Program Units
                      */
 
-Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, @1.first_line, @1.first_column, $3); $$->accept(vs);}
+Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, $5, @1.first_line, @1.first_column, $3); root = $$;}
             ;
 
-ProgramName     : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
+ProgramName     : ID {$$ = new Id_Node($1, @1.first_line, @1.first_column);}
                 ;
 
 ProgramBody     : DeclarationList FunctionList CompoundStatement {$$ = new Program_body($1, $2, $3);}
@@ -157,7 +158,7 @@ Functions       : FunctionDeclaration {$$ = new vector<Function_Node *>(); $$->p
                 ;
 
 FunctionDeclaration     : FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON CompoundStatement END FunctionName {
-                          $$ = new Function_Node($1, $3, $7, $5, @1.first_line, @1.first_column);}
+                          $$ = new Function_Node($1, $9, $3, $7, $5, @1.first_line, @1.first_column);}
                         ;
 
 FunctionName    : ID {$$ = new Id_Node($1, yylloc.first_line, yylloc.first_column);}
@@ -346,11 +347,16 @@ int main(int argc, const char *argv[]) {
     yyin = fp;
     yyparse();
 
+    root->accept(vs);
+
 
     printf("\n"
            "|--------------------------------|\n"
            "|  There is no syntactic error!  |\n"
            "|--------------------------------|\n");
+
+    delete root;
+    fclose(fp);
     return 0;
 }
             

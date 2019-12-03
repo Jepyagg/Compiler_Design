@@ -76,7 +76,6 @@ class Expression_Node : public AstNode {
         Expression_Node(){};
         virtual void accept(class VisitorBase &v) = 0;
         virtual ~Expression_Node(){
-            // cout <<"expr\n";
         };
 };
 
@@ -104,7 +103,6 @@ class Const_Node : public Expression_Node { //save type and const
             free(str);
             if(arr_list != NULL) {
                 for(auto tmp : *arr_list) {
-                    // cout <<"arr_list\n";
                     delete tmp;
                 }
                 delete arr_list;
@@ -121,6 +119,7 @@ class Id_Node : public AstNode {
         void accept(VisitorBase &v) { v.visit(this); }
         ~Id_Node() {
             free(identifier);
+            identifier = NULL;
         }
 };
 
@@ -132,7 +131,6 @@ class Declaration_Node : public AstNode {
         Declaration_Node(vector<Id_Node *> * list, Const_Node* type, int line, int col) : id_list(list), type_val(type), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Declaration_Node() {
-            // cout << "Declaration_Node\n";
             delete type_val;
             if(id_list != NULL) {
                 for(auto tmp : *id_list) {
@@ -151,7 +149,6 @@ class Binary_Operator_Node : public Expression_Node {
         Binary_Operator_Node(Expression_Node *left, Expression_Node *right, char *opt, int line, int col):leftoperand(left), rightoperand(right), oper(opt), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Binary_Operator_Node() {
-            // cout <<"Binary_Operator_Node\n";
             free(oper);
             delete leftoperand;
             delete rightoperand;
@@ -166,7 +163,6 @@ class Unary_Operator_Node : public Expression_Node {
         Unary_Operator_Node(Expression_Node *opd, char *opt, int line, int col):operand(opd), oper(opt), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Unary_Operator_Node() {
-            // cout << "Unary_Operator_Node\n";
             free(oper);
             delete operand;
         }
@@ -214,7 +210,6 @@ class Statement_Node : public AstNode {
         Statement_Node(){};
         virtual void accept(class VisitorBase &v) = 0;
         virtual ~Statement_Node(){
-            // cout << "stat\n";
         };
 };
 
@@ -226,7 +221,6 @@ class Compound_Node : public Statement_Node {
         Compound_Node(vector<Declaration_Node *> *decl, vector<Statement_Node *> *stat, int line, int col):decl_list(decl), stat_list(stat), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Compound_Node() {
-            // cout << "Compound\n";
             if(decl_list != NULL) {
                 for(auto tmp : *decl_list) {
                     delete tmp;
@@ -262,7 +256,6 @@ class Print_Node : public Statement_Node {
         Print_Node(Expression_Node *expr, int line, int col):expr(expr), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Print_Node() {
-            cout <<"Print_Node\n";
             delete expr;
         }
 };
@@ -331,9 +324,7 @@ class For_Node : public Statement_Node {
         For_Node(Id_Node *id, Assignment_Node* const1, Const_Node* const2, Const_Node* const3, vector<Statement_Node *>* stat, int line, int col):ident(id), val(const1), val2(const2), val3(const3), stat_list(stat), line_num(line), col_num(col){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~For_Node() {
-            delete ident;
             delete val;
-            delete val2;
             delete val3;
             if(stat_list != NULL) {
                 for(auto tmp : *stat_list) {
@@ -424,7 +415,6 @@ class Program_body : public AstNode {
         Program_body(vector<Declaration_Node *> *decl, vector<Function_Node *>* func, Compound_Node* com):decl_list(decl), func_list(func), comp(com){};
         void accept(VisitorBase &v) { v.visit(this); }
         ~Program_body() {
-            // cout << "Program_body\n";
             if(decl_list != NULL) {
                 for(auto tmp : *decl_list) {
                     delete tmp;

@@ -75,8 +75,7 @@ class Expression_Node : public AstNode {
     public:
         Expression_Node(){};
         virtual void accept(class VisitorBase &v) = 0;
-        virtual ~Expression_Node(){
-        };
+        virtual ~Expression_Node(){};
 };
 
 class Array_Node : public AstNode {
@@ -209,8 +208,7 @@ class Statement_Node : public AstNode {
     public:
         Statement_Node(){};
         virtual void accept(class VisitorBase &v) = 0;
-        virtual ~Statement_Node(){
-        };
+        virtual ~Statement_Node(){};
 };
 
 class Compound_Node : public Statement_Node {

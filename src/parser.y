@@ -132,7 +132,7 @@ static Visitor vs;
        Program Units
                      */
 
-Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, $5, @1.first_line, @1.first_column, $3); root = $$;}
+Program     : ProgramName SEMICOLON ProgramBody END ProgramName {$$ = new AstProgram($1, $5, $3, @1.first_line, @1.first_column); root = $$;}
             ;
 
 ProgramName     : ID {$$ = new Id_Node($1, @1.first_line, @1.first_column);}

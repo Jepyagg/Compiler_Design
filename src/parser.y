@@ -347,15 +347,16 @@ int main(int argc, const char *argv[]) {
     yyin = fp;
     yyparse();
 
-    root->accept(vs);
+    if(argc == 3) {
+        root->accept(vs);
+    }
 
-
+    delete root;
     printf("\n"
            "|--------------------------------|\n"
            "|  There is no syntactic error!  |\n"
            "|--------------------------------|\n");
 
-    delete root;
     fclose(fp);
     return 0;
 }

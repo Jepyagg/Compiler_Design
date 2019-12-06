@@ -18,4 +18,4 @@ scanner.c: scanner.l
 	flex -o scanner.c scanner.l
 
 clean:
-	rm parser.c scanner.c parser.output parser parser.h
+	rm -f parser.c scanner.c parser.output parser parser.h

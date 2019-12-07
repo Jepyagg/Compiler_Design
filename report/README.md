@@ -5,6 +5,8 @@
 ## 作業內容：
 * Extend parser to construct an abstract syntax tree (AST) for a given program written in P language and to serialize this AST into the designated format.
 
+* 使用 Visitor Pattern 來完成本次作業。
+
 ## 流程：
 * 先建立 AST 會需要用到的 Node，再撰寫parser的action，接著嘗試visit AST的 node，將結果給印出來。
 * AST 會需要的 Node:
@@ -102,6 +104,9 @@
     * 中間還夾雜MCSL的Lab跟期末專題的proposal，同時還有心理學的報告，讓我整週很充實的渡過了就是了...
 
 * 這份作業我認為最難的地方就是一開始了，後面其實就還好了，因為都在做差不多的事情，像是在```parser```補個action，在```ast.h```裡面新增class，在```visitor.h```跟```visitor.cpp```補上動作跟宣告...等等，基本上就是差不多的動作啦
+
+* 使用```Visitor Pattern```來完成本次作業，其實有點不知道如果不是用VP來寫的話會是怎樣寫。雖然助教推薦說每個Node都分出一個```.cpp```跟```.h```檔，但因為遇到include先後順序的問題，所以到最後就乾脆全部都寫在一起了，算是有點偷懶吧...
+ 
 * HW3 spec：有什麼地方可以改進：
     * 我覺得最難的是理解說該如何從頭開始進行，因為一開始是什麼東西都沒有，因此光看README其實有點難知道要從哪邊下手，我是覺得可以像助教後來寫的code那樣，放一個簡單一點的code在裡面，這樣要開始下手其實可以比較簡單一些，可以知道說大概跑出來的樣子會是怎樣。
     

@@ -2,12 +2,15 @@
 #include <stdint.h>
 
 #include "include/core/error.h"
+#include "include/AST/ast.h"
 #include "parser.h"
 
 #define YY_USER_ACTION                                                         \
   yylloc.first_line = LineNum;                                                \
   yylloc.first_column = ColNum;                                               \
   ColNum += yyleng;
+
+extern "C" int yylex();
 
 #define LIST                strCat(yytext)
 #define TOKEN(t)            {LIST; if (OptTok) printf("<%s>\n", #t);}
@@ -63,40 +66,41 @@ float {integer}\.(0|[0-9]*[1-9])
     /* Keyword */
 "array"   { TOKEN(KWarray);   return ARRAY; }
 "begin"   { TOKEN(KWbegin);   return BEGIN_; }
-"boolean" { TOKEN(KWboolean); return BOOLEAN; }
+"boolean" { yylval.str_val = strdup(yytext); TOKEN(KWboolean); return BOOLEAN; }
 "def"     { TOKEN(KWdef);     return DEF; }
 "do"      { TOKEN(KWdo);      return DO; }
 "else"    { TOKEN(KWelse);    return ELSE; }
 "end"     { TOKEN(KWend);     return END; }
-"false"   { TOKEN(KWfalse);   return FALSE; }
+"false"   { yylval.str_val = strdup(yytext); TOKEN(KWfalse);   return FALSE; }
 "for"     { TOKEN(KWfor);     return FOR; }
-"integer" { TOKEN(KWinteger); return INTEGER; }
+"integer" { yylval.str_val = strdup(yytext); TOKEN(KWinteger); return INTEGER; }
 "if"      { TOKEN(KWif);      return IF; }
 "of"      { TOKEN(KWof);      return OF; }
 "print"   { TOKEN(KWprint);   return PRINT; }
 "read"    { TOKEN(KWread);    return READ; }
-"real"    { TOKEN(KWreal);    return REAL; }
-"string"  { TOKEN(KWstring);  return STRING; }
+"real"    { yylval.str_val = strdup(yytext); TOKEN(KWreal);    return REAL; }
+"string"  { yylval.str_val = strdup(yytext); TOKEN(KWstring);  return STRING; }
 "then"    { TOKEN(KWthen);    return THEN; }
 "to"      { TOKEN(KWto);      return TO; }
-"true"    { TOKEN(KWtrue);    return TRUE; }
+"true"    { yylval.str_val = strdup(yytext); TOKEN(KWtrue);    return TRUE; }
 "return"  { TOKEN(KWreturn);  return RETURN; }
 "var"     { TOKEN(KWvar);     return VAR; }
 "while"   { TOKEN(KWwhile);   return WHILE; }
 
     /* Identifier */
-[a-zA-Z][a-zA-Z0-9]* { TOKEN_STRING(id, yytext); return ID; }
+[a-zA-Z][a-zA-Z0-9]* { yylval.str_val = strdup(yytext); TOKEN_STRING(id, yytext); return ID; }
 
     /* Integer (decimal/octal) */
-{integer} { TOKEN_STRING(integer, yytext);     return INT_LITERAL; }
-0[0-7]+   { TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
+{integer} { yylval.str_val = strdup(yytext); TOKEN_STRING(integer, yytext); return INT_LITERAL; }
+0[0-7]+   { yylval.str_val = strdup(yytext); TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
 
     /* Floating-Point */
-{float} { TOKEN_STRING(float, yytext); return REAL_LITERAL; }
+{float} { yylval.str_val = strdup(yytext); TOKEN_STRING(float, yytext); return REAL_LITERAL; }
 
     /* Scientific Notation [Ee][+-]?[0-9]+ */
 ({integer}|{float})[Ee][+-]?({integer}) {
     TOKEN_STRING(scientific, yytext);
+    yylval.str_val = strdup(yytext);
     return REAL_LITERAL;
 }
 
@@ -119,6 +123,7 @@ float {integer}\.(0|[0-9]*[1-9])
     }
     *StrPtr = '\0';
     TOKEN_STRING(string, StringLiteral);
+    yylval.str_val = strdup(yytext);
     return STRING_LITERAL;
 }
     /* Whitespace */

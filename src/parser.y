@@ -35,7 +35,6 @@ extern int yylex(void);
 static void yyerror(const char *msg);
 
 static AstProgram *root;
-static Visitor vs;
 
 %}
 
@@ -339,15 +338,25 @@ void yyerror(const char *msg) {
 }
 
 int main(int argc, const char *argv[]) {
-    CHECK(argc >= 2, "Usage: ./parser <filename>\n");
-
+    CHECK((argc >= 2) && (argc<=3), "Usage: ./parser <filename> [--dump-ast]\n");
+    
+    int isDumpNeed;
+    if(argc == 3){
+        isDumpNeed = strcmp(argv[2], "--dump-ast");
+        if(isDumpNeed != 0){
+            fprintf(stderr, "Usage: ./parser <filename> [--dump-ast]\n");
+            exit(-1);                                                          
+        }
+    }
+        
     FILE *fp = fopen(argv[1], "r");
 
     CHECK(fp != NULL, "fopen() fails.\n");
     yyin = fp;
     yyparse();
 
-    if(argc == 3) {
+    if(argc == 3 && isDumpNeed == 0) {
+        Visitor vs;
         root->accept(vs);
     }
 

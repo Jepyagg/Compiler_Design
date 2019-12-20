@@ -1,8 +1,7 @@
 %{
 #include <stdint.h>
 
-#include "include/core/error.h"
-#include "include/AST/ast.h"
+#include "core/error.h"
 #include "parser.h"
 
 #define YY_USER_ACTION                                                         \
@@ -10,18 +9,19 @@
   yylloc.first_column = ColNum;                                               \
   ColNum += yyleng;
 
-extern "C" int yylex();
-
 #define LIST                strCat(yytext)
 #define TOKEN(t)            {LIST; if (OptTok) printf("<%s>\n", #t);}
 #define TOKEN_CHAR(t)       {LIST; if (OptTok) printf("<%c>\n", (t));}
 #define TOKEN_STRING(t, s)  {LIST; if (OptTok) printf("<%s: %s>\n", #t, (s));}
 #define MAX_LINE_LENG       512
 
+extern "C" int yylex();
+
 uint32_t LineNum = 1;
 uint32_t ColNum = 1;
 char Buffer[MAX_LINE_LENG];
 
+static int32_t OptTable = 1;
 static int32_t OptSrc = 1;
 static int32_t OptTok = 1;
 static char StringLiteral[MAX_LINE_LENG];
@@ -47,60 +47,60 @@ float {integer}\.(0|[0-9]*[1-9])
 "]" { TOKEN_CHAR(']'); return R_BRACKET; }
 
     /* Operator */
-"+"   { TOKEN_CHAR('+'); return PLUS; }
-"-"   { TOKEN_CHAR('-'); return MINUS; }
-"*"   { TOKEN_CHAR('*'); return MULTIPLY; }
-"/"   { TOKEN_CHAR('/'); return DIVIDE; }
-"mod" { TOKEN(mod);      return MOD; }
-":="  { TOKEN(:=);       return ASSIGN; }
-"<"   { TOKEN_CHAR('<'); return LESS; }
-"<="  { TOKEN(<=);       return LESS_OR_EQUAL; }
-"<>"  { TOKEN(<>);       return NOT_EQUAL; }
-">="  { TOKEN(>=);       return GREATER_OR_EQUAL; }
-">"   { TOKEN_CHAR('>'); return GREATER; }
-"="   { TOKEN_CHAR('='); return EQUAL; }
-"and" { TOKEN(and);      return AND; }
-"or"  { TOKEN(or);       return OR; }
-"not" { TOKEN(not);      return NOT; }
+"+"   { TOKEN_CHAR('+'); yylval.op_type=OP_PLUS;             return PLUS; }
+"-"   { TOKEN_CHAR('-'); yylval.op_type=OP_MINUS;            return MINUS; }
+"*"   { TOKEN_CHAR('*'); yylval.op_type=OP_MULTIPLY;         return MULTIPLY; }
+"/"   { TOKEN_CHAR('/'); yylval.op_type=OP_DIVIDE;           return DIVIDE; }
+"mod" { TOKEN(mod);      yylval.op_type=OP_MOD;              return MOD; }
+":="  { TOKEN(:=);       yylval.op_type=OP_ASSIGN;           return ASSIGN; }
+"<"   { TOKEN_CHAR('<'); yylval.op_type=OP_LESS;             return LESS; }
+"<="  { TOKEN(<=);       yylval.op_type=OP_LESS_OR_EQUAL;    return LESS_OR_EQUAL; }
+"<>"  { TOKEN(<>);       yylval.op_type=OP_NOT_EQUAL;        return NOT_EQUAL; }
+">="  { TOKEN(>=);       yylval.op_type=OP_GREATER_OR_EQUAL; return GREATER_OR_EQUAL; }
+">"   { TOKEN_CHAR('>'); yylval.op_type=OP_GREATER;          return GREATER; }
+"="   { TOKEN_CHAR('='); yylval.op_type=OP_EQUAL;            return EQUAL; }
+"and" { TOKEN(and);      yylval.op_type=OP_AND;              return AND; }
+"or"  { TOKEN(or);       yylval.op_type=OP_OR;               return OR; }
+"not" { TOKEN(not);      yylval.op_type=OP_NOT;              return NOT; }
 
     /* Keyword */
 "array"   { TOKEN(KWarray);   return ARRAY; }
 "begin"   { TOKEN(KWbegin);   return BEGIN_; }
-"boolean" { yylval.str_val = strdup(yytext); TOKEN(KWboolean); return BOOLEAN; }
+"boolean" { TOKEN(KWboolean); return BOOLEAN; }
 "def"     { TOKEN(KWdef);     return DEF; }
 "do"      { TOKEN(KWdo);      return DO; }
 "else"    { TOKEN(KWelse);    return ELSE; }
 "end"     { TOKEN(KWend);     return END; }
-"false"   { yylval.str_val = strdup(yytext); TOKEN(KWfalse);   return FALSE; }
+"false"   { TOKEN(KWfalse);   return FALSE; }
 "for"     { TOKEN(KWfor);     return FOR; }
-"integer" { yylval.str_val = strdup(yytext); TOKEN(KWinteger); return INTEGER; }
+"integer" { TOKEN(KWinteger); return INTEGER; }
 "if"      { TOKEN(KWif);      return IF; }
 "of"      { TOKEN(KWof);      return OF; }
 "print"   { TOKEN(KWprint);   return PRINT; }
 "read"    { TOKEN(KWread);    return READ; }
-"real"    { yylval.str_val = strdup(yytext); TOKEN(KWreal);    return REAL; }
-"string"  { yylval.str_val = strdup(yytext); TOKEN(KWstring);  return STRING; }
+"real"    { TOKEN(KWreal);    return REAL; }
+"string"  { TOKEN(KWstring);  return STRING; }
 "then"    { TOKEN(KWthen);    return THEN; }
 "to"      { TOKEN(KWto);      return TO; }
-"true"    { yylval.str_val = strdup(yytext); TOKEN(KWtrue);    return TRUE; }
+"true"    { TOKEN(KWtrue);    return TRUE; }
 "return"  { TOKEN(KWreturn);  return RETURN; }
 "var"     { TOKEN(KWvar);     return VAR; }
 "while"   { TOKEN(KWwhile);   return WHILE; }
 
     /* Identifier */
-[a-zA-Z][a-zA-Z0-9]* { yylval.str_val = strdup(yytext); TOKEN_STRING(id, yytext); return ID; }
+[a-zA-Z][a-zA-Z0-9]* { TOKEN_STRING(id, yytext); yylval.text = strdup(yytext); return ID; }
 
     /* Integer (decimal/octal) */
-{integer} { yylval.str_val = strdup(yytext); TOKEN_STRING(integer, yytext); return INT_LITERAL; }
-0[0-7]+   { yylval.str_val = strdup(yytext); TOKEN_STRING(oct_integer, yytext); return INT_LITERAL; }
+{integer} { TOKEN_STRING(integer, yytext);     yylval.val = atoi(yytext); return INT_LITERAL; }
+0[0-7]+   { TOKEN_STRING(oct_integer, yytext); yylval.val = strtol(yytext, NULL, 8); return INT_LITERAL; }
 
     /* Floating-Point */
-{float} { yylval.str_val = strdup(yytext); TOKEN_STRING(float, yytext); return REAL_LITERAL; }
+{float} { TOKEN_STRING(float, yytext); yylval.dval = atof(yytext); return REAL_LITERAL; }
 
     /* Scientific Notation [Ee][+-]?[0-9]+ */
 ({integer}|{float})[Ee][+-]?({integer}) {
     TOKEN_STRING(scientific, yytext);
-    yylval.str_val = strdup(yytext);
+    yylval.dval = atof(yytext);
     return REAL_LITERAL;
 }
 
@@ -123,17 +123,20 @@ float {integer}\.(0|[0-9]*[1-9])
     }
     *StrPtr = '\0';
     TOKEN_STRING(string, StringLiteral);
-    yylval.str_val = strdup(yytext);
+    yylval.text = strdup(yytext);
     return STRING_LITERAL;
 }
     /* Whitespace */
 [ \t]+ { LIST; }
 
     /* Pseudocomment */
-"//&"[ST][+-].* {
+"//&"[DST][+-].* {
     LIST;
     char option = yytext[3];
     switch (option) {
+    case 'D':
+        OptTable = (yytext[4] == '+') ? 1 : 0;
+        break;
     case 'S':
         OptSrc = (yytext[4] == '+') ? 1 : 0;
         break;

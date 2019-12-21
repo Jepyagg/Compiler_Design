@@ -14,8 +14,12 @@ AST := $(shell find $(ASTDIR) -name '*.cpp')
 VISITORDIR = src/visitor/
 VISITOR := $(shell find $(VISITORDIR) -name '*.cpp')
 
+TABLERDIR = src/symbol/
+TABLER := $(shell find $(TABLERDIR) -name '*.cpp')
+
 SRC := $(AST) \
-       $(VISITOR)
+       $(VISITOR) \
+       $(TABLER)
 
 EXEC = $(PARSER)
 OBJS = $(PARSER:=.cpp) \
@@ -42,6 +46,6 @@ $(EXEC): $(OBJS)
 	$(CC) -o $@ $^ $(LIBS) $(INCLUDE)
 
 clean:
-	$(RM) $(DEPS) $(SCANNER:=.cpp) $(PARSER:=.cpp) $(OBJS) $(EXEC)
+	$(RM) $(DEPS) $(SCANNER:=.cpp) $(PARSER:=.cpp) $(OBJS) $(EXEC) parser.output parser.h
 
 -include $(DEPS)

@@ -70,14 +70,6 @@ enum enumKind {
     KIND_CONST
 };
 
-enum enumSYMType {
-    SYM_INT,
-    SYM_REAL,
-    SYM_BOOL,
-    SYM_STR,
-    SYM_ARR
-};
-
 typedef struct __IntPair {
     int start;
     int end;

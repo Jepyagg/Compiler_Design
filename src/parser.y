@@ -19,6 +19,7 @@
 #include "AST/function_call.hpp"
 #include "AST/ASTDumper.hpp"
 #include "semantic/SemanticAnalyzer.hpp"
+#include "symbol/TableConstructor.hpp"
 #include "core/error.h"
 
 #include <stdio.h>
@@ -89,20 +90,20 @@ static Node AST;
 
     /* Union Define */
 %union {
-    int    val;
-    double dval;
-    char*  text;
+    int                                 val;
+    double                              dval;
+    char*                               text;
 
-    enum enumOperator op_type;
+    enum enumOperator                   op_type;
 
-    Node      node;
-    NodeList* node_list_ptr;
+    Node                                node;
+    NodeList*                           node_list_ptr;
 
-    struct NodeWithTypeList*           node_w_type_list_ptr;
-    vector<struct NodeWithTypeList*>*  node_w_type_list_ptr_list_ptr;
+    struct NodeWithTypeList*            node_w_type_list_ptr;
+    vector<struct NodeWithTypeList*>*   node_w_type_list_ptr_list_ptr;
 
-    vector<struct id_info>* id_list_ptr;
-    VariableInfo*           variable_info_ptr;
+    vector<struct id_info>*             id_list_ptr;
+    VariableInfo*                       variable_info_ptr;
 }
 
 %locations
@@ -222,53 +223,39 @@ Functions       : FunctionDeclaration {$$ = new NodeList(); $$->push_back($1);}
                 ;
 
 FunctionDeclaration     : FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS ReturnType SEMICOLON CompoundStatement END FunctionName {
-        // Function Node
-        vector<VariableInfo*> prototype;
-        //NodeList* parameters = new NodeList();
-        
-        // Disassemble FormalArgList (node w type list ptr list ptr)
-        if ($3!=nullptr)
-            for(uint i=0; i<$3->size(); i++){
-                // put node (Node)
-                //parameters->push_back((*$3)[i]->node);
-                for(uint j=0; j<(*$3)[i]->counter; j++){
-                    // put type (VariableInfo*)
-                    // duplicate (eliminate hierarchy problem)
-                    VariableInfo* dupTemp = new VariableInfo();
-                    dupTemp->type_set = (*$3)[i]->type->type_set;
-                    dupTemp->type = (*$3)[i]->type->type;
-                    dupTemp->array_range = (*$3)[i]->type->array_range;
-                    dupTemp->int_literal = (*$3)[i]->type->int_literal;
-                    dupTemp->real_literal = (*$3)[i]->type->real_literal;
-                    dupTemp->string_literal = (*$3)[i]->type->string_literal;
-                    dupTemp->boolean_literal = (*$3)[i]->type->boolean_literal;
-                    
-                    prototype.push_back(dupTemp);
-                }   
-            }
-        else {
-            //delete parameters;
-            //parameters = nullptr;
-        }
+                            vector<VariableInfo*> prototype;
+                            //NodeList* parameters = new NodeList();
+                            
+                            // Disassemble FormalArgList (node w type list ptr list ptr)
+                            if ($3 != nullptr) {
+                                for(uint i = 0; i < $3->size(); ++i){
+                                    // put node (Node)
+                                    //parameters->push_back((*$3)[i]->node);
+                                    for(uint j=0; j<(*$3)[i]->counter; j++){
+                                        // put type (VariableInfo*)
+                                        // duplicate (eliminate hierarchy problem)
+                                        VariableInfo* dupTemp = new VariableInfo();
+                                        dupTemp->type_set = (*$3)[i]->type->type_set;
+                                        dupTemp->type = (*$3)[i]->type->type;
+                                        dupTemp->array_range = (*$3)[i]->type->array_range;
+                                        dupTemp->int_literal = (*$3)[i]->type->int_literal;
+                                        dupTemp->real_literal = (*$3)[i]->type->real_literal;
+                                        dupTemp->string_literal = (*$3)[i]->type->string_literal;
+                                        dupTemp->boolean_literal = (*$3)[i]->type->boolean_literal;
+                                        
+                                        prototype.push_back(dupTemp);
+                                    }   
+                                } 
+                            } else {
+                                //delete parameters;
+                                //parameters = nullptr;
+                            }
 
-        $$ = new FunctionNode(
-            @1.first_line,
-            @1.first_column,
-            string($1),
-            $3,
-            $5,
-            $7,
-            @9.first_line,
-            @9.first_column,
-            string($9),
-            prototype
-        );
+                            $$ = new FunctionNode(@1.first_line, @1.first_column, string($1), $3, $5, $7, @9.first_line, @9.first_column, string($9), prototype);
 
-        // Memory_Free
-        free($1);
-        free($9);
-    }
-;
+                            free($1); free($9);
+                        }
+                        ;
 
 FunctionName    : ID {$$ = strdup($1); free($1);}
                 ;
@@ -281,46 +268,32 @@ FormalArgs      : FormalArg {$$ = new vector<NodeWithTypeList*>(); $$->push_back
                 | FormalArgs SEMICOLON FormalArg {$1->push_back($3); $$ = $1;}
                 ;
 
-FormalArg       : IdList COLON Type{
-        // Declaration Node (but location is not KWvar)
-        $$ = new NodeWithTypeList();
-        $$->type = $3;
-        $$->counter = 0;
+FormalArg       : IdList COLON Type { // Declaration Node (but location is not KWvar)
+                    $$ = new NodeWithTypeList(); $$->type = $3; $$->counter = 0;
 
-        NodeList* var_list = new NodeList();
-        for(uint i=0; i<$1->size(); i++){
-            // Duplicate $3 (eliminate hierarchy problem)
-            VariableInfo* dupTemp = new VariableInfo();
-            dupTemp->type_set = $3->type_set;
-            dupTemp->type = $3->type;
-            dupTemp->array_range = $3->array_range;
-            dupTemp->int_literal = $3->int_literal;
-            dupTemp->real_literal = $3->real_literal;
-            dupTemp->string_literal = $3->string_literal;
-            dupTemp->boolean_literal = $3->boolean_literal;
+                    NodeList* var_list = new NodeList();
+                    for(uint i = 0; i < $1->size(); ++i) {
+                        // Duplicate $3 (eliminate hierarchy problem)
+                        VariableInfo* dupTemp = new VariableInfo();
+                        dupTemp->type_set = $3->type_set;
+                        dupTemp->type = $3->type;
+                        dupTemp->array_range = $3->array_range;
+                        dupTemp->int_literal = $3->int_literal;
+                        dupTemp->real_literal = $3->real_literal;
+                        dupTemp->string_literal = $3->string_literal;
+                        dupTemp->boolean_literal = $3->boolean_literal;
 
-            VariableNode* variable_node = new VariableNode(
-                (*$1)[i].line_number,
-                (*$1)[i].col_number,
-                (*$1)[i].name,
-                dupTemp,
-                nullptr
-            );
+                        VariableNode* variable_node = new VariableNode((*$1)[i].line_number, (*$1)[i].col_number, (*$1)[i].name, dupTemp, nullptr);
 
-            var_list->push_back(variable_node);
-            $$->counter++;
-        }
+                        var_list->push_back(variable_node);
+                        $$->counter++;
+                    }
 
-        $$->node = new DeclarationNode(
-            @1.first_line,
-            @1.first_column,
-            var_list
-        );
+                    $$->node = new DeclarationNode(@1.first_line, @1.first_column, var_list);
 
-        // Memory_Free
-        delete $1;
-    }
-;
+                    delete $1;
+                }
+                ;
 
 IdList      : ID {$$ = new vector<id_info>(); $$->push_back(id_info{string($1), @1.first_line, @1.first_column}); free($1);}
             | IdList COMMA ID {$1->push_back(id_info{string($3), @3.first_line, @3.first_column}); $$ = $1; free($3);}
@@ -334,82 +307,56 @@ ReturnType      : COLON ScalarType {$$ = $2;}
        Data Types and Declarations
                                    */
 
-Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON{
-        NodeList* var_list = new NodeList();
-        for(uint i=0; i<$2->size(); i++){
-            if( $4->type_set == SET_CONSTANT_LITERAL ){ 
-                // Literal Constant
-                // duplicate $4 (eliminate hierarchy problem)
-                VariableInfo* dupTemp = new VariableInfo();
-                dupTemp->type_set = $4->type_set;
-                dupTemp->type = $4->type;
-                dupTemp->array_range = $4->array_range;
-                dupTemp->int_literal = $4->int_literal;
-                dupTemp->real_literal = $4->real_literal;
-                dupTemp->string_literal = $4->string_literal;
-                dupTemp->boolean_literal = $4->boolean_literal;
+Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {NodeList* var_list = new NodeList();
+                    for(uint i = 0; i < $2->size(); ++i) {
+                        if( $4->type_set == SET_CONSTANT_LITERAL ) {  // Literal Constant
+                            // duplicate $4 (eliminate hierarchy problem)
+                            VariableInfo* dupTemp = new VariableInfo();
+                            dupTemp->type_set = $4->type_set;
+                            dupTemp->type = $4->type;
+                            dupTemp->array_range = $4->array_range;
+                            dupTemp->int_literal = $4->int_literal;
+                            dupTemp->real_literal = $4->real_literal;
+                            dupTemp->string_literal = $4->string_literal;
+                            dupTemp->boolean_literal = $4->boolean_literal;
 
-                ConstantValueNode* constant_value_node = new ConstantValueNode(
-                    @4.first_line,
-                    @4.first_column,
-                    dupTemp
-                );
+                            ConstantValueNode* constant_value_node = new ConstantValueNode(@4.first_line, @4.first_column, dupTemp);
 
-                // duplicate $4 (eliminate hierarchy problem)
-                VariableInfo* dupTemp2 = new VariableInfo();
-                dupTemp2->type_set = $4->type_set;
-                dupTemp2->type = $4->type;
-                dupTemp2->array_range = $4->array_range;
-                dupTemp2->int_literal = $4->int_literal;
-                dupTemp2->real_literal = $4->real_literal;
-                dupTemp2->string_literal = $4->string_literal;
-                dupTemp2->boolean_literal = $4->boolean_literal;
+                            // duplicate $4 (eliminate hierarchy problem)
+                            VariableInfo* dupTemp2 = new VariableInfo();
+                            dupTemp2->type_set = $4->type_set;
+                            dupTemp2->type = $4->type;
+                            dupTemp2->array_range = $4->array_range;
+                            dupTemp2->int_literal = $4->int_literal;
+                            dupTemp2->real_literal = $4->real_literal;
+                            dupTemp2->string_literal = $4->string_literal;
+                            dupTemp2->boolean_literal = $4->boolean_literal;
 
-                VariableNode* variable_node = new VariableNode(
-                    (*$2)[i].line_number,
-                    (*$2)[i].col_number,
-                    (*$2)[i].name,
-                    dupTemp2,
-                    constant_value_node
-                );
+                            VariableNode* variable_node = new VariableNode((*$2)[i].line_number, (*$2)[i].col_number, (*$2)[i].name, dupTemp2, constant_value_node);
 
-                var_list->push_back(variable_node);
-                
-            } else { 
-                // Type
-                // duplicate $4 (eliminate hierarchy problem)
-                VariableInfo* dupTemp = new VariableInfo();
-                dupTemp->type_set = $4->type_set;
-                dupTemp->type = $4->type;
-                dupTemp->array_range = $4->array_range;
-                dupTemp->int_literal = $4->int_literal;
-                dupTemp->real_literal = $4->real_literal;
-                dupTemp->string_literal = $4->string_literal;
-                dupTemp->boolean_literal = $4->boolean_literal;
+                            var_list->push_back(variable_node);
+                            
+                        } else {  // Type
+                            // duplicate $4 (eliminate hierarchy problem)
+                            VariableInfo* dupTemp = new VariableInfo();
+                            dupTemp->type_set = $4->type_set;
+                            dupTemp->type = $4->type;
+                            dupTemp->array_range = $4->array_range;
+                            dupTemp->int_literal = $4->int_literal;
+                            dupTemp->real_literal = $4->real_literal;
+                            dupTemp->string_literal = $4->string_literal;
+                            dupTemp->boolean_literal = $4->boolean_literal;
 
-                VariableNode* variable_node = new VariableNode(
-                    (*$2)[i].line_number,
-                    (*$2)[i].col_number,
-                    (*$2)[i].name,
-                    dupTemp,
-                    nullptr
-                );
+                            VariableNode* variable_node = new VariableNode((*$2)[i].line_number, (*$2)[i].col_number, (*$2)[i].name, dupTemp, nullptr);
 
-                var_list->push_back(variable_node);
-            }
-        }
+                            var_list->push_back(variable_node);
+                        }
+                    }
 
-        $$ = new DeclarationNode(
-            @1.first_line,
-            @1.first_column,
-            var_list
-        );
-
-        // Memory_Free
-        delete $2;
-        delete $4;
-    }
-;
+                    $$ = new DeclarationNode(@1.first_line, @1.first_column, var_list);
+                    delete $2; delete $4;
+                }
+                ;
 
 TypeOrConstant      : Type {$$ = $1;}
                     | LiteralConstant {$$ = $1;}
@@ -435,12 +382,12 @@ ArrDecl     : ARRAY INT_LITERAL TO INT_LITERAL OF {$$ = new VariableInfo(); $$->
             | ArrDecl ARRAY INT_LITERAL TO INT_LITERAL OF {$1->array_range.push_back(IntPair{$3, $5}); $$ = $1;}
             ;
 
-LiteralConstant     : INT_LITERAL{$$ = new VariableInfo(); $$->type_set=SET_CONSTANT_LITERAL; $$->type=TYPE_INTEGER; $$->int_literal=$1;}
-                    | REAL_LITERAL {$$ = new VariableInfo(); $$->type_set=SET_CONSTANT_LITERAL; $$->type=TYPE_REAL; $$->real_literal=$1;}
-                    | STRING_LITERAL {$$ = new VariableInfo(); $$->type_set=SET_CONSTANT_LITERAL; $$->type=TYPE_STRING;
-                      $$->string_literal=string($1); free($1);}
-                    | TRUE {$$ = new VariableInfo(); $$->type_set=SET_CONSTANT_LITERAL; $$->type=TYPE_BOOLEAN; $$->boolean_literal=Boolean_TRUE;}
-                    | FALSE {$$ = new VariableInfo(); $$->type_set=SET_CONSTANT_LITERAL; $$->type=TYPE_BOOLEAN; $$->boolean_literal=Boolean_FALSE;}
+LiteralConstant     : INT_LITERAL{$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_INTEGER; $$->int_literal = $1;}
+                    | REAL_LITERAL {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_REAL; $$->real_literal = $1;}
+                    | STRING_LITERAL {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_STRING;
+                      $$->string_literal = string($1); free($1);}
+                    | TRUE {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_BOOLEAN; $$->boolean_literal = Boolean_TRUE;}
+                    | FALSE {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_BOOLEAN; $$->boolean_literal = Boolean_FALSE;}
                     ;
 
     /*
@@ -639,7 +586,8 @@ int main(int argc, const char *argv[]) {
     CHECK(fp != NULL, "fopen() fails.\n");
     yyin = fp;
     yyparse();
-
+    TableConstructor constor;
+    AST->accept(constor);
     if(argc == 3 && isDumpNeed == 0) {
         ASTDumper visitor;
         AST->accept(visitor);
@@ -652,8 +600,8 @@ int main(int argc, const char *argv[]) {
     yylex_destroy();
 
     printf("\n"
-           "|--------------------------------|\n"
-           "|  There is no syntactic error!  |\n"
-           "|--------------------------------|\n");
+           "|---------------------------------------------|\n"
+           "|  There is no syntactic and semantic error!  |\n"
+           "|---------------------------------------------|\n");
     return 0;
 }

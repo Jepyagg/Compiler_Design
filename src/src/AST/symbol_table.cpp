@@ -5,7 +5,7 @@
 #include <string>
 
 
-SymbolTableNode::SymbolTableNode(vector<SymbolEntryNode*> _entries) {
+SymbolTableNode::SymbolTableNode(vector<SymbolEntryNode*>* _entries) {
         this->entries = _entries;
     }
 

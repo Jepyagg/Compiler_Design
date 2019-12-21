@@ -2,8 +2,7 @@
 #include "AST/ast.hpp"
 #include "visitor/visitor.hpp"
 
-class UnaryOperatorNode : public ASTNodeBase
-{
+class UnaryOperatorNode : public ASTNodeBase {
     public:
         int  line_number; // operator
         int  col_number;  // operator

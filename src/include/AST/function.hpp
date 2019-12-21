@@ -2,8 +2,7 @@
 #include "AST/ast.hpp"
 #include "visitor/visitor.hpp"
 
-class FunctionNode : public ASTNodeBase
-{
+class FunctionNode : public ASTNodeBase {
     public:
         int  line_number; // function name
         int  col_number;  // function name
@@ -16,7 +15,8 @@ class FunctionNode : public ASTNodeBase
         string end_name;
 
         vector<VariableInfo*> prototype;
-    
+        SymbolTableNode* symbol_table_node;
+        
     public:
         FunctionNode(
             int _line_number, 

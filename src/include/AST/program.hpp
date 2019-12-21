@@ -2,8 +2,7 @@
 #include "AST/ast.hpp"
 #include "visitor/visitor.hpp"
 
-class ProgramNode : public ASTNodeBase
-{
+class ProgramNode : public ASTNodeBase {
     public:
         int  line_number; // program name
         int  col_number;  // program name
@@ -12,6 +11,7 @@ class ProgramNode : public ASTNodeBase
         NodeList* declaration_node_list; // zero or more
         NodeList* function_node_list; // zero or more
         Node compound_statement_node;
+        SymbolTableNode* symbol_table_node;
         int  end_line_number; // program name after end
         int  end_col_number;  // program name after end
         string end_name;

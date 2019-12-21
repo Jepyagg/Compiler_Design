@@ -12,6 +12,8 @@ class ForNode : public ASTNodeBase
         Node condition; // an expression node
         NodeList* body; // a list of statement nodes (zero or more)
 
+        SymbolTableNode* symbol_table_node;
+
     public:
         ForNode(
             int _line_number, 

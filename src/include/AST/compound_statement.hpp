@@ -10,6 +10,8 @@ class CompoundStatementNode : public ASTNodeBase
         NodeList* declaration_node_list; // Local variable and constant declarations (zero or more)
         NodeList* statement_node_list; // Statements (zero or more)
 
+        SymbolTableNode* symbol_table_node;
+        
     public:
         CompoundStatementNode(
             int _line_number, 

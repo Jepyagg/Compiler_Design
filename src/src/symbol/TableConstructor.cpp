@@ -23,8 +23,10 @@
 #include <iomanip>
 #include <cstdio>
 
-vector<SymbolTableNode*> *symbol_table_list = new vector<SymbolTableNode*>();
-int table_cnt = 0, level_cnt = 0;
+vector<SymbolTableNode*> symbol_table_list;
+vector<string> for_name_check;
+SymbolTableNode* current_table = nullptr;
+int table_cnt = 0, level_cnt = 0, func_param = 0, for_check = 0;
 
 void dumpDemarcation(const char chr) {
     for (size_t i = 0; i < 110; ++i) {
@@ -104,26 +106,32 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
         tmp = "";
         int check = 0;
         if((*(symbol_table->entries))[i]->sym_attribute.size() != 0) {
-            // cout << "test";
             for(uint k = 0; k < (*(symbol_table->entries))[i]->sym_attribute.size(); ++k) {
-                // cout << "test2";
                 if(k != 0) tmp += ", ";
                 switch((*(symbol_table->entries))[i]->sym_attribute[k]->type_set) {
                     case SET_SCALAR:
                         switch((*(symbol_table->entries))[i]->sym_attribute[k]->type) {
-                            case TYPE_INTEGER: tmp += "integer"; break;
-                            case TYPE_REAL:    tmp += "real"; break;
-                            case TYPE_STRING:  tmp += "string"; break;
-                            case TYPE_BOOLEAN: tmp += "boolean"; break;
-                            default:           std::cout << "something wrong"; break;
+                            case TYPE_INTEGER: 
+                                tmp += "integer"; break;
+                            case TYPE_REAL:    
+                                tmp += "real"; break;
+                            case TYPE_STRING:  
+                                tmp += "string"; break;
+                            case TYPE_BOOLEAN: 
+                                tmp += "boolean"; break;
+                            default:           
+                                std::cout << "something wrong"; break;
                         }
                         break;
                     case SET_CONSTANT_LITERAL:
                         check = 1;
                         switch((*(symbol_table->entries))[i]->sym_attribute[k]->type) {
-                            case TYPE_INTEGER: std::cout << std::left << std::setw(11) << (*(symbol_table->entries))[i]->sym_attribute[k]->int_literal; break;
-                            case TYPE_REAL:    std::cout << std::left << std::setw(11) << fixed << setprecision(6) << (*(symbol_table->entries))[i]->sym_attribute[k]->real_literal; break;
-                            case TYPE_STRING:  std::cout << std::left << std::setw(11) << (*(symbol_table->entries))[i]->sym_attribute[k]->string_literal; break;
+                            case TYPE_INTEGER: 
+                                std::cout << std::left << std::setw(11) << (*(symbol_table->entries))[i]->sym_attribute[k]->int_literal; break;
+                            case TYPE_REAL:    
+                                std::cout << std::left << std::setw(11) << fixed << setprecision(6) << (*(symbol_table->entries))[i]->sym_attribute[k]->real_literal; break;
+                            case TYPE_STRING:  
+                                std::cout << std::left << std::setw(11) << (*(symbol_table->entries))[i]->sym_attribute[k]->string_literal; break;
                             case TYPE_BOOLEAN: 
                                 switch((*(symbol_table->entries))[i]->sym_attribute[k]->boolean_literal){
                                     case Boolean_TRUE:  std::cout << std::left << std::setw(11) << "true"; break;
@@ -167,25 +175,27 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
 void TableConstructor::visit(ProgramNode *m) {
     vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
     SymbolTableNode* symbol_table = new SymbolTableNode(entries);
-    symbol_table_list->push_back(symbol_table);
+    symbol_table_list.push_back(symbol_table);
 
     VariableInfo* tmp = new VariableInfo(); 
     vector<VariableInfo*> tmp2;
     tmp->type_set = UNKNOWN_SET;
     tmp->type = TYPE_VOID;
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(m->program_name, KIND_PROG, 0, tmp, tmp2);
-    (*symbol_table_list)[table_cnt]->entries->push_back(symbol_entry);
+    symbol_table_list[0]->entries->push_back(symbol_entry);
+    current_table = symbol_table;
+
     if(m->declaration_node_list != nullptr) {
         for(uint i = 0; i < m->declaration_node_list->size(); ++i) {
             (*(m->declaration_node_list))[i]->accept(*this);
         }
     }
-
     if(m->function_node_list != nullptr) {
         for(uint i = 0; i < m->function_node_list->size(); ++i) {
             (*(m->function_node_list))[i]->accept(*this);
         }
     }
+    current_table = symbol_table;
     if(m->compound_statement_node != nullptr) {
         m->compound_statement_node->accept(*this);
     }
@@ -204,12 +214,37 @@ void TableConstructor::visit(DeclarationNode *m) {
 
 void TableConstructor::visit(VariableNode *m) {
     vector<VariableInfo*> tmp2;
-    SymbolEntryNode* symbol_entry = new SymbolEntryNode(m->variable_name, KIND_VAR, level_cnt, m->type, tmp2);
+    string name_len_check = m->variable_name; //check name length, can't bigger than 32
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->variable_name, 0, 32);
+    }
+    SymbolEntryNode* symbol_entry = new SymbolEntryNode(name_len_check, KIND_VAR, level_cnt, m->type, tmp2);
     if(m->constant_value_node != nullptr) {
         symbol_entry->sym_attribute.push_back(m->type);
         symbol_entry->sym_kind = KIND_CONST;
     }
-    (*symbol_table_list)[table_cnt]->entries->push_back(symbol_entry);
+    int check_redeclar = 0; // 0 : no redecl, 1 : redecl 
+    for(uint i = 0; i < current_table->entries->size(); ++i) {
+        string tmp = (*current_table->entries)[i]->sym_name;
+        if(name_len_check == tmp) {
+            check_redeclar = 1;
+        }
+    }
+    if(for_check == 1) {
+        for(uint i = 0; i < for_name_check.size(); ++i) {
+            string tmp = for_name_check[i];
+            if(name_len_check == tmp) {
+                check_redeclar = 1;
+            }
+        }
+        if(check_redeclar == 0) {
+            for_name_check.push_back(symbol_entry->sym_name);
+        }
+    }
+
+    if(check_redeclar == 0) {
+        current_table->entries->push_back(symbol_entry);
+    }
 }
 
 void TableConstructor::visit(ConstantValueNode *m) {
@@ -217,151 +252,212 @@ void TableConstructor::visit(ConstantValueNode *m) {
 }
 
 void TableConstructor::visit(FunctionNode *m) {
+    string name_len_check = m->function_name; //check name length, can't bigger than 32
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->function_name, 0, 32);
+    }
+
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(
-                m->function_name, 
+                name_len_check, 
                 KIND_FUNC, 
                 0, 
                 m->return_type,
                 m->prototype);
-    (*symbol_table_list)[0]->entries->push_back(symbol_entry);
-    vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
-    SymbolTableNode* symbol_table = new SymbolTableNode(entries);
-    symbol_table_list->push_back(symbol_table);
 
-    m->symbol_table_node = symbol_table;
-    table_cnt++;
-    level_cnt++;
+    int check_redeclar = 0; // 0 : no redecl, 1 : redecl 
+    for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
+        string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
+        if(name_len_check == tmp) {
+            check_redeclar = 1;
+        }
+    }
+    if(check_redeclar == 0) {
+        symbol_table_list[0]->entries->push_back(symbol_entry);
+    }
+
     if (m->parameters != nullptr) {
+
+        // build table to store param
+        vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
+        SymbolTableNode* symbol_table = new SymbolTableNode(entries);
+        // symbol_table_list.push_back(symbol_table);
+        current_table = symbol_table; // point to table
+        level_cnt++; // level add
+
         for(uint i = 0; i < m->parameters->size(); ++i){
             (*(m->parameters))[i]->node->accept(*this);
         }
-        for(uint i = 0; i < (*symbol_table_list)[table_cnt]->entries->size(); ++i) {
-            (*(*symbol_table_list)[table_cnt]->entries)[i]->sym_kind = KIND_PARAM;
+        for(uint i = 0; i < current_table->entries->size(); ++i) {
+            (*current_table->entries)[i]->sym_kind = KIND_PARAM;
         }
+        func_param = 1; // check func have param
     }
     if (m->body != nullptr) {
-        m->body->accept(*this);    
+        m->body->accept(*this);
     }
+    // m->symbol_table_node = symbol_table;
+    // dumpSymbol(m->symbol_table_node);
+    // level_cnt--;
+}
+
+void TableConstructor::visit(CompoundStatementNode *m) {
+
+    vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
+    SymbolTableNode* symbol_table = new SymbolTableNode(entries);
+    // symbol_table_list.push_back(symbol_table);
+    
+    if(func_param == 0) { // 表示沒參數，所以改用 compound 建立的table
+        level_cnt++;
+        current_table = symbol_table;
+    }
+
+    m->symbol_table_node = current_table;
+    symbol_table_list.push_back(m->symbol_table_node);
+    
+    // cout << level_cnt << '\n';
+    if (m->declaration_node_list != nullptr) {
+        for(uint i = 0; i < m->declaration_node_list->size(); ++i) {
+            (*(m->declaration_node_list))[i]->accept(*this);
+        }
+    }
+
+    func_param = 0;
+
+    // if(func_param == 1) {
+    //     level_cnt++;
+    // }
+    if (m->statement_node_list != nullptr) {
+        for(uint i = 0; i < m->statement_node_list->size(); ++i) {
+            (*(m->statement_node_list))[i]->accept(*this);
+        }
+    }
+    // cout << level_cnt << '\n'
     dumpSymbol(m->symbol_table_node);
     level_cnt--;
 }
 
-void TableConstructor::visit(CompoundStatementNode *m) {
-    if(m->declaration_node_list != nullptr || m->statement_node_list != nullptr) {
-        vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
-        SymbolTableNode* symbol_table = new SymbolTableNode(entries);
-        symbol_table_list->push_back(symbol_table);
-        table_cnt++;
-        level_cnt++;
-        if (m->declaration_node_list != nullptr) {
-            for(uint i=0; i< m->declaration_node_list->size(); i++){
-                (*(m->declaration_node_list))[i]->accept(*this);
-            }
-        }
-        if (m->statement_node_list != nullptr) {
-            for(uint i=0; i< m->statement_node_list->size(); i++){
-                (*(m->statement_node_list))[i]->accept(*this);
-            }
-        }
-        dumpSymbol(symbol_table);
-        level_cnt--;
+void TableConstructor::visit(AssignmentNode *m) {
+    if (m->variable_reference_node != nullptr) {
+        m->variable_reference_node->accept(*this);
+    }
+    
+    if (m->expression_node != nullptr) {
+        m->expression_node->accept(*this);
     }
 }
 
-void TableConstructor::visit(AssignmentNode *m) {
-        if (m->variable_reference_node != nullptr)
-            m->variable_reference_node->accept(*this);
-        
-        if (m->expression_node != nullptr)
-            m->expression_node->accept(*this);  
-}
-
 void TableConstructor::visit(PrintNode *m) {
-        if (m->expression_node != nullptr)
-            m->expression_node->accept(*this);  
+    if (m->expression_node != nullptr) {
+        m->expression_node->accept(*this);
+    }
 }
 
 void TableConstructor::visit(ReadNode *m) {
-        if (m->variable_reference_node != nullptr)
-            m->variable_reference_node->accept(*this);    
+    if (m->variable_reference_node != nullptr) {
+        m->variable_reference_node->accept(*this);
+    }
 }
 
 void TableConstructor::visit(VariableReferenceNode *m) {
-    
-    if (m->expression_node_list != nullptr)
-        for(uint i=0; i< m->expression_node_list->size(); i++){
-        
-            std::cout<<"["<<std::endl;
-            
-                (*(m->expression_node_list))[i]->accept(*this);
-    
-            
-        
-            std::cout<<"]"<<std::endl;
+    if (m->expression_node_list != nullptr) {
+        for(uint i = 0; i < m->expression_node_list->size(); ++i) {
+            (*(m->expression_node_list))[i]->accept(*this);
         }
+    }
 }
 
 void TableConstructor::visit(BinaryOperatorNode *m) {
-        if (m->left_operand != nullptr)
-            m->left_operand->accept(*this);
+    if (m->left_operand != nullptr) {
+        m->left_operand->accept(*this);
+    }
 
-        if (m->right_operand != nullptr)
-            m->right_operand->accept(*this);
+    if (m->right_operand != nullptr) {
+        m->right_operand->accept(*this);
+    }
 }
 
 void TableConstructor::visit(UnaryOperatorNode *m) {
-        if (m->operand != nullptr)
-            m->operand->accept(*this);
+    if (m->operand != nullptr) {
+        m->operand->accept(*this);
+    }
 }
 
 void TableConstructor::visit(IfNode *m) {
-        if (m->condition != nullptr)
-            m->condition->accept(*this);
+    if (m->condition != nullptr) {
+        m->condition->accept(*this);
+    }
 
-        if (m->body != nullptr)
-            for(uint i=0; i< m->body->size(); i++)
-                (*(m->body))[i]->accept(*this);
+    if (m->body != nullptr) {
+        for(uint i = 0; i < m->body->size(); ++i) {
+            (*(m->body))[i]->accept(*this);
+        }
+    }
 
     if (m->body_of_else != nullptr){
-
-        std::cout<<"else"<<std::endl;
-            for(uint i=0; i< m->body_of_else->size(); i++)
-                (*(m->body_of_else))[i]->accept(*this);
-
+        std::cout << "else\n";
+        for(uint i = 0; i < m->body_of_else->size(); ++i) {
+            (*(m->body_of_else))[i]->accept(*this);
+        }
     }
 }
 
 void TableConstructor::visit(WhileNode *m) {
-        if (m->condition != nullptr)
-            m->condition->accept(*this);
+    if (m->condition != nullptr) {
+        m->condition->accept(*this);
+    }
 
-        if (m->body != nullptr)
-            for(uint i=0; i< m->body->size(); i++)
-                (*(m->body))[i]->accept(*this);
+    if (m->body != nullptr) {
+        for(uint i = 0; i< m->body->size(); ++i) {
+            (*(m->body))[i]->accept(*this);
+        }
+    }
 }
 
 void TableConstructor::visit(ForNode *m) {
-        if (m->loop_variable_declaration != nullptr)
-            m->loop_variable_declaration->accept(*this);
-        
-        if (m->initial_statement != nullptr)
-            m->initial_statement->accept(*this);
 
-        if (m->condition != nullptr)
-            m->condition->accept(*this);
+    vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
+    SymbolTableNode* symbol_table = new SymbolTableNode(entries);
+    symbol_table_list.push_back(symbol_table);
+    current_table = symbol_table;
+    m->symbol_table_node = symbol_table;
 
-        if (m->body != nullptr)
-            for(uint i=0; i< m->body->size(); i++)
-                (*(m->body))[i]->accept(*this);
+    level_cnt++;
+    for_check = 1;
+    if (m->loop_variable_declaration != nullptr) {
+        m->loop_variable_declaration->accept(*this);
+        for(uint i = 0; i < current_table->entries->size(); ++i) {
+            (*m->symbol_table_node->entries)[0]->sym_kind = KIND_LP_VAR;
+        }
+    }
+    
+    if (m->initial_statement != nullptr) {
+        m->initial_statement->accept(*this);
+    }
+
+    if (m->condition != nullptr) {
+        m->condition->accept(*this);
+    }
+
+    if (m->body != nullptr) {
+        for(uint i = 0; i < m->body->size(); ++i) {
+            (*(m->body))[i]->accept(*this);
+        }
+    } 
+    for_check = 0;
+    level_cnt--;
+    dumpSymbol(m->symbol_table_node);
 }
 
 void TableConstructor::visit(ReturnNode *m) {
-        if (m->return_value != nullptr)
-            m->return_value->accept(*this);
+    if (m->return_value != nullptr) {
+        m->return_value->accept(*this);
+    }
 }
 
 void TableConstructor::visit(FunctionCallNode *m) {
-        if (m->arguments != nullptr)
-            for(uint i=0; i< m->arguments->size(); i++)
-                (*(m->arguments))[i]->accept(*this);
+    if (m->arguments != nullptr) {
+        for(uint i=0; i< m->arguments->size(); i++) {
+            (*(m->arguments))[i]->accept(*this);
+        }
+    }
 }

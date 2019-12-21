@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <cstdio>
 
+extern int OptTable;
+
 vector<SymbolTableNode*> symbol_table_list;
 vector<string> for_name_check;
 SymbolTableNode* current_table = nullptr;
@@ -36,6 +38,7 @@ void dumpDemarcation(const char chr) {
 }
 
 void dumpSymbol(SymbolTableNode* symbol_table) {
+    if (OptTable == 0) return;
     dumpDemarcation('=');
     printf("%-33s%-11s%-11s%-17s%-11s\n", "Name", "Kind", "Level", "Type", "Attribute");
     dumpDemarcation('-');

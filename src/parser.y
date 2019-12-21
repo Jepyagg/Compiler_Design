@@ -44,7 +44,7 @@ typedef struct YYLTYPE {
 /* Declared by scanner.l */
 extern int32_t LineNum;
 extern char Buffer[512];
-extern int Opt_Table;
+extern int32_t OptTable;
 
 /* Declared by lex */
 extern FILE *yyin;
@@ -429,77 +429,54 @@ ElseOrNot       : ELSE StatementList {$$ = $2;}
 While       : WHILE Expression DO StatementList END DO {$$ = new WhileNode(@1.first_line, @1.first_column, $2, $4);}
             ;
 
-For     : FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO StatementList END DO {
-        // loop_variable_declaration : a declaration node
-        VariableInfo* var_info = new VariableInfo();
-        var_info->type_set = SET_SCALAR;
-        var_info->type = TYPE_INTEGER;
-        VariableNode* variable_node = new VariableNode(
-            @2.first_line,
-            @2.first_column,
-            string($2),
-            var_info,
-            nullptr
-        );
+For     : FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO StatementList END DO { // loop_variable_declaration : a declaration node
+            VariableInfo* var_info = new VariableInfo();
+            var_info->type_set = SET_SCALAR;
+            var_info->type = TYPE_INTEGER;
+            VariableNode* variable_node = new VariableNode(@2.first_line, @2.first_column, string($2), var_info, nullptr);
 
-        NodeList* var_list = new NodeList();
-        var_list->push_back(variable_node);
-        DeclarationNode* declaration_node = new DeclarationNode(
-            @2.first_line,
-            @2.first_column,
-            var_list
-        );
+            NodeList* var_list = new NodeList();
+            var_list->push_back(variable_node);
+            DeclarationNode* declaration_node = new DeclarationNode(@2.first_line, @2.first_column, var_list);
 
-        // initial: an assignment node
-        VariableReferenceNode* variable_reference_node = new VariableReferenceNode(
-            @2.first_line,
-            @2.first_column,
-            string($2),
-            nullptr
-        );
+            // initial: an assignment node
+            VariableReferenceNode* variable_reference_node = new VariableReferenceNode(
+                @2.first_line,
+                @2.first_column,
+                string($2),
+                nullptr
+            );
 
-        VariableInfo* constant_value_info = new VariableInfo();
-        constant_value_info->type_set = SET_CONSTANT_LITERAL;
-        constant_value_info->type = TYPE_INTEGER;
-        constant_value_info->int_literal = $4;
-        ConstantValueNode* constant_value_node = new ConstantValueNode(
-            @4.first_line,
-            @4.first_column,
-            constant_value_info
-        );
+            VariableInfo* constant_value_info = new VariableInfo();
+            constant_value_info->type_set = SET_CONSTANT_LITERAL;
+            constant_value_info->type = TYPE_INTEGER;
+            constant_value_info->int_literal = $4;
+            ConstantValueNode* constant_value_node = new ConstantValueNode(
+                @4.first_line,
+                @4.first_column,
+                constant_value_info
+            );
 
-        AssignmentNode* assignment_node = new AssignmentNode(
-            @3.first_line,
-            @3.first_column,
-            variable_reference_node,
-            constant_value_node // expression node
-        );
+            AssignmentNode* assignment_node = new AssignmentNode(
+                @3.first_line,
+                @3.first_column,
+                variable_reference_node,
+                constant_value_node // expression node
+            );
 
-        // condition: an expression node ( constant value node )
-        VariableInfo* constant_value_info2 = new VariableInfo();
-        constant_value_info2->type_set = SET_CONSTANT_LITERAL;
-        constant_value_info2->type = TYPE_INTEGER;
-        constant_value_info2->int_literal = $6;
-        ConstantValueNode* constant_value_node2 = new ConstantValueNode(
-            @6.first_line,
-            @6.first_column,
-            constant_value_info2
-        );
+            // condition: an expression node ( constant value node )
+            VariableInfo* constant_value_info2 = new VariableInfo();
+            constant_value_info2->type_set = SET_CONSTANT_LITERAL;
+            constant_value_info2->type = TYPE_INTEGER;
+            constant_value_info2->int_literal = $6;
+            ConstantValueNode* constant_value_node2 = new ConstantValueNode(@6.first_line, @6.first_column, constant_value_info2);
 
-        // For Node
-        $$ = new ForNode(
-            @1.first_line,
-            @1.first_column,
-            declaration_node,
-            assignment_node,
-            constant_value_node2, // expression node
-            $8
-        );
+            // For Node
+            $$ = new ForNode(@1.first_line, @1.first_column, declaration_node, assignment_node, constant_value_node2, $8);
 
-        // Memory_Free
-        free($2);
-    }
-;
+            free($2);
+        }
+        ;
 
 Return      : RETURN Expression SEMICOLON {$$ = new ReturnNode(@1.first_line, @1.first_column, $2);}
             ;

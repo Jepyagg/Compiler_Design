@@ -65,6 +65,8 @@ struct id_info{
 };
 
 static Node AST;
+string file_name = "";
+int error_find = 0;
 
 %}
     /* Useful Header */
@@ -563,22 +565,31 @@ int main(int argc, const char *argv[]) {
     CHECK(fp != NULL, "fopen() fails.\n");
     yyin = fp;
     yyparse();
+
+    // construct a Table
     TableConstructor constor;
     AST->accept(constor);
+
+    // Dump AST
     if(argc == 3 && isDumpNeed == 0) {
         ASTDumper visitor;
         AST->accept(visitor);
     }
 
-	// TODO: construct a SemanticAnalyzer to analyze the AST
+	// onstruct a SemanticAnalyzer to analyze the AST
+    string file_name = argv[1];
+    SemanticAnalyzer analyzer;
+    AST->accept(analyzer);
 
     delete AST;
     fclose(fp);
     yylex_destroy();
 
-    printf("\n"
-           "|---------------------------------------------|\n"
-           "|  There is no syntactic and semantic error!  |\n"
-           "|---------------------------------------------|\n");
+    if(error_find == 0) {
+        printf("\n"
+               "|---------------------------------------------|\n"
+               "|  There is no syntactic and semantic error!  |\n"
+               "|---------------------------------------------|\n");
+    }
     return 0;
 }

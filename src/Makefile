@@ -17,9 +17,13 @@ VISITOR := $(shell find $(VISITORDIR) -name '*.cpp')
 TABLERDIR = src/symbol/
 TABLER := $(shell find $(TABLERDIR) -name '*.cpp')
 
+SEMANTICDIR = src/semantic/
+SEMANTIC := $(shell find $(SEMANTICDIR) -name '*.cpp')
+
 SRC := $(AST) \
        $(VISITOR) \
-       $(TABLER)
+       $(TABLER) \
+       $(SEMANTIC)
 
 EXEC = $(PARSER)
 OBJS = $(PARSER:=.cpp) \

@@ -22,6 +22,7 @@ uint32_t ColNum = 1;
 char Buffer[MAX_LINE_LENG];
 
 int32_t OptTable = 1;
+char* arr_token[MAX_LINE_LENG + 1];
 static int32_t OptSrc = 1;
 static int32_t OptTok = 1;
 static char StringLiteral[MAX_LINE_LENG];
@@ -158,6 +159,7 @@ float {integer}\.(0|[0-9]*[1-9])
 <INITIAL,CCOMMENT>\n {
     if (OptSrc)
         printf("%d: %s\n", LineNum, Buffer);
+    arr_token[LineNum] = strdup(Buffer);
     ++LineNum;
     ColNum = 1;
     Buffer[0] = '\0';

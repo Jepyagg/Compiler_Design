@@ -1,8 +1,10 @@
 parser.output
 parser.h
 parser.c
+parser.cpp
 parser
 scanner.c
+scanner.cpp
 /test/outputs
 
 #  ██████╗    ██╗      █████╗ ███╗   ██╗ ██████╗ ██╗   ██╗ █████╗  ██████╗ ███████╗

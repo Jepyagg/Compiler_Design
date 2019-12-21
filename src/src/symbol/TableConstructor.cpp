@@ -45,13 +45,20 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
     for(uint i = 0; i < symbol_table->entries->size(); ++i) {
         std::cout << std::left << std::setw(33) << (*(symbol_table->entries))[i]->sym_name;
         switch((*(symbol_table->entries))[i]->sym_kind) {
-            case KIND_PROG: std::cout << std::left << std::setw(11) << "program"; break;
-            case KIND_FUNC: std::cout << std::left << std::setw(11) << "function"; break;
-            case KIND_PARAM: std::cout << std::left << std::setw(11) << "parameter"; break;
-            case KIND_VAR: std::cout << std::left << std::setw(11) << "variable"; break;
-            case KIND_LP_VAR: std::cout << std::left << std::setw(11) << "loop_var"; break;
-            case KIND_CONST: std::cout << std::left << std::setw(11) << "constant"; break;
-            default: std::cout << "something wrong"; break;
+            case KIND_PROG: 
+                std::cout << std::left << std::setw(11) << "program"; break;
+            case KIND_FUNC: 
+                std::cout << std::left << std::setw(11) << "function"; break;
+            case KIND_PARAM: 
+                std::cout << std::left << std::setw(11) << "parameter"; break;
+            case KIND_VAR: 
+                std::cout << std::left << std::setw(11) << "variable"; break;
+            case KIND_LP_VAR:
+                std::cout << std::left << std::setw(11) << "loop_var"; break;
+            case KIND_CONST: 
+                std::cout << std::left << std::setw(11) << "constant"; break;
+            default: 
+                std::cout << "something wrong"; break;
         }
         string tmp = to_string((*(symbol_table->entries))[i]->sym_level);
         if((*(symbol_table->entries))[i]->sym_level > 0) {
@@ -65,29 +72,44 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
         switch((*(symbol_table->entries))[i]->sym_type->type_set){
             case SET_SCALAR:
                 switch((*(symbol_table->entries))[i]->sym_type->type) {
-                    case TYPE_INTEGER: tmp += "integer"; break;
-                    case TYPE_REAL:    tmp += "real"; break;
-                    case TYPE_STRING:  tmp += "string"; break;
-                    case TYPE_BOOLEAN: tmp += "boolean"; break;
-                    default:           std::cout << "something wrong"; break;
+                    case TYPE_INTEGER: 
+                        tmp += "integer"; break;
+                    case TYPE_REAL:    
+                        tmp += "real"; break;
+                    case TYPE_STRING:  
+                        tmp += "string"; break;
+                    case TYPE_BOOLEAN: 
+                        tmp += "boolean"; break;
+                    default:           
+                        std::cout << "something wrong"; break;
                 }
                 break;
             case SET_CONSTANT_LITERAL:
                 switch((*(symbol_table->entries))[i]->sym_type->type) {
-                    case TYPE_INTEGER: tmp += "integer"; break;
-                    case TYPE_REAL:    tmp += "real"; break;
-                    case TYPE_STRING:  tmp += "string"; break;
-                    case TYPE_BOOLEAN: tmp += "boolean"; break;
-                    default:           std::cout << "something wrong"; break;
+                    case TYPE_INTEGER: 
+                        tmp += "integer"; break;
+                    case TYPE_REAL:    
+                        tmp += "real"; break;
+                    case TYPE_STRING:  
+                        tmp += "string"; break;
+                    case TYPE_BOOLEAN: 
+                        tmp += "boolean"; break;
+                    default:           
+                        std::cout << "something wrong"; break;
                 }
                 break;
             case SET_ACCUMLATED:
                 switch((*(symbol_table->entries))[i]->sym_type->type) {
-                    case TYPE_INTEGER: tmp += "integer"; break;
-                    case TYPE_REAL:    tmp += "real"; break;
-                    case TYPE_STRING:  tmp += "string"; break;
-                    case TYPE_BOOLEAN: tmp += "boolean"; break;
-                    default:           std::cout << "something wrong"; break;
+                    case TYPE_INTEGER: 
+                        tmp += "integer"; break;
+                    case TYPE_REAL:    
+                        tmp += "real"; break;
+                    case TYPE_STRING:  
+                        tmp += "string"; break;
+                    case TYPE_BOOLEAN: 
+                        tmp += "boolean"; break;
+                    default:           
+                        std::cout << "something wrong"; break;
                 }
                 tmp += " ";
                 for(uint j = 0; j < (*(symbol_table->entries))[i]->sym_type->array_range.size(); ++j){
@@ -137,9 +159,12 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
                                 std::cout << std::left << std::setw(11) << (*(symbol_table->entries))[i]->sym_attribute[k]->string_literal; break;
                             case TYPE_BOOLEAN: 
                                 switch((*(symbol_table->entries))[i]->sym_attribute[k]->boolean_literal){
-                                    case Boolean_TRUE:  std::cout << std::left << std::setw(11) << "true"; break;
-                                    case Boolean_FALSE: std::cout << std::left << std::setw(11) << "false"; break;
-                                    default: std::cout << "unknown"; break;
+                                    case Boolean_TRUE:  
+                                        std::cout << std::left << std::setw(11) << "true"; break;
+                                    case Boolean_FALSE: 
+                                        std::cout << std::left << std::setw(11) << "false"; break;
+                                    default: 
+                                        std::cout << "something wrong"; break;
                                 } 
                                 break;
                             default:
@@ -148,11 +173,16 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
                         break;
                     case SET_ACCUMLATED:
                         switch((*(symbol_table->entries))[i]->sym_attribute[k]->type) {
-                            case TYPE_INTEGER: tmp += "integer"; break;
-                            case TYPE_REAL:    tmp += "real"; break;
-                            case TYPE_STRING:  tmp += "string"; break;
-                            case TYPE_BOOLEAN: tmp += "boolean"; break;
-                            default:           std::cout << "something wrong"; break;
+                            case TYPE_INTEGER: 
+                                tmp += "integer"; break;
+                            case TYPE_REAL:    
+                                tmp += "real"; break;
+                            case TYPE_STRING:  
+                                tmp += "string"; break;
+                            case TYPE_BOOLEAN: 
+                                tmp += "boolean"; break;
+                            default:           
+                                std::cout << "something wrong"; break;
                         }
                         tmp += " ";
                         for(uint j = 0; j < (*(symbol_table->entries))[i]->sym_attribute[k]->array_range.size(); ++j){
@@ -217,7 +247,7 @@ void TableConstructor::visit(DeclarationNode *m) {
 
 void TableConstructor::visit(VariableNode *m) {
     vector<VariableInfo*> tmp2;
-    string name_len_check = m->variable_name; //check name length, can't bigger than 32
+    string name_len_check = m->variable_name; //check name length, bigger than 32 will ignore
     if(name_len_check.length() > 32) {
         name_len_check = name_len_check.assign(m->variable_name, 0, 32);
     }
@@ -226,7 +256,7 @@ void TableConstructor::visit(VariableNode *m) {
         symbol_entry->sym_attribute.push_back(m->type);
         symbol_entry->sym_kind = KIND_CONST;
     }
-    int check_redeclar = 0; // 0 : no redecl, 1 : redecl 
+    int check_redeclar = 0; // 0 : no redecl, 1 : redecl
     for(uint i = 0; i < current_table->entries->size(); ++i) {
         string tmp = (*current_table->entries)[i]->sym_name;
         if(name_len_check == tmp) {
@@ -283,6 +313,7 @@ void TableConstructor::visit(FunctionNode *m) {
         // build table to store param
         vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
         SymbolTableNode* symbol_table = new SymbolTableNode(entries);
+        m->symbol_table_node = symbol_table; //error detect use
         // symbol_table_list.push_back(symbol_table);
         current_table = symbol_table; // point to table
         level_cnt++; // level add

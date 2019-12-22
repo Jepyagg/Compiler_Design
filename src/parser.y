@@ -576,8 +576,17 @@ int main(int argc, const char *argv[]) {
         AST->accept(visitor);
     }
 
-	// onstruct a SemanticAnalyzer to analyze the AST
-    string file_name = argv[1];
+	// record file name
+    string tmp(argv[1]);
+    for(int i = tmp.size() - 3; i >= 0; --i) {
+        if(tmp[i] == '.' || tmp[i] == '/') {
+            break;
+        } else {
+            file_name = tmp[i] + file_name;
+        }
+    }
+
+    // construct a SemanticAnalyzer to analyze the AST
     SemanticAnalyzer analyzer;
     AST->accept(analyzer);
 

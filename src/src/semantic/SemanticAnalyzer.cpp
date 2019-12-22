@@ -30,7 +30,7 @@ extern vector<SymbolTableNode*> symbol_table_list;
 
 SymbolTableNode* sem_table = nullptr;
 vector<string> for_check_vec;
-int for_check_p;
+int for_check_p = 0, first_op = 0, second_op = 0, use_opd = 0;
 
 void space_arrow(int len) {
     error_find = 1;
@@ -42,12 +42,14 @@ void space_arrow(int len) {
 
 
 void SemanticAnalyzer::visit(ProgramNode *m) {
-    // 晚點處理
-    // if(m->program_name != file_name) {
-    //     std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program name must be the same as filename\n";
-    //     std::cerr << "    " << arr_token[m->line_number] << '\n';
-    //     space_arrow(m->col_number);
-    // }
+
+    // error detect
+    if(m->program_name != file_name) {
+        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program name must be the same as filename\n";
+        std::cerr << "    " << arr_token[m->line_number] << '\n';
+        space_arrow(m->col_number);
+    }
+
     sem_table = m->symbol_table_node;
     if (m->declaration_node_list != nullptr) {
         for(uint i = 0; i< m->declaration_node_list->size(); ++i) {
@@ -86,13 +88,27 @@ void SemanticAnalyzer::visit(VariableNode *m) {
         name_len_check = name_len_check.assign(m->variable_name, 0, 32);
     }
 
+    for(uint i = 0; i < sem_table->entries->size(); ++i) {
+        if((*(sem_table->entries))[i]->sym_type->type_set == SET_ACCUMLATED) {
+            for(uint j = 0; j < (*(sem_table->entries))[i]->sym_type->array_range.size(); ++j) {
+                uint arr_start = (*(sem_table->entries))[i]->sym_type->array_range[j].start;
+                uint arr_end = (*(sem_table->entries))[i]->sym_type->array_range[j].end;
+                if(arr_start > arr_end) {
+                    std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": '" << (*(sem_table->entries))[i]->sym_name << "' declared as an array with a lower bound greater or equal to upper bound\n";
+                    std::cerr << "    " << arr_token[m->line_number] << '\n';
+                    space_arrow(m->col_number);
+                }
+            }
+        }
+    }
+
     int check_redecl = 0;
     if(for_check_p == 1) {
         for(uint i = 0; i < for_check_vec.size(); ++i) {
             string tmp = for_check_vec[i];
             if(name_len_check == tmp) {
                 check_redecl = 1;
-                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << " symbol '" << name_len_check << "' is redeclared\n";
+                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
             }
@@ -110,7 +126,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
             (*sem_table->entries)[i]->decl_check = 1;
             break;
         } else if(name_len_check == tmp && (*sem_table->entries)[i]->decl_check == 1) { //redeclare
-            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << " symbol '" << name_len_check << "' is redeclared\n";
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
         }
@@ -128,7 +144,7 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
             (*sem_table->entries)[i]->decl_check = 1;
             break;
         } else if(m->function_name == tmp && (*sem_table->entries)[i]->decl_check == 1) { //redeclare
-            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << " symbol '" << m->function_name << "' is redeclared\n";
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << m->function_name << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
         }
@@ -176,9 +192,45 @@ void SemanticAnalyzer::visit(ReadNode *m) {}
 
 void SemanticAnalyzer::visit(VariableReferenceNode *m) {}
 
-void SemanticAnalyzer::visit(BinaryOperatorNode *m) {}
+void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
+    switch(m->op) {
+        case OP_PLUS: use_opd = 1; break;
+        case OP_MINUS: use_opd = 1; break;
+        case OP_MULTIPLY: use_opd = 1; break;
+        case OP_DIVIDE: use_opd = 1; break;
+        case OP_MOD: use_opd = 2; break;
+        case OP_AND: use_opd = 3; break;
+        case OP_OR: use_opd = 3; break;
+        case OP_LESS: use_opd = 4; break;
+        case OP_LESS_OR_EQUAL: use_opd = 4; break;
+        case OP_EQUAL: use_opd = 4; break;
+        case OP_GREATER: use_opd = 4; break;
+        case OP_GREATER_OR_EQUAL: use_opd = 4; break;
+        case OP_NOT_EQUAL: use_opd = 4; break;
+    }
+    if (m->left_operand != nullptr) {
+        m->left_operand->accept(*this);
+    }
 
-void SemanticAnalyzer::visit(UnaryOperatorNode *m) {}
+    if (m->right_operand != nullptr) {
+        m->right_operand->accept(*this);
+    }
+    use_opd = 0;
+    first_op = 0;
+    second_op = 0;
+}
+
+void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
+    switch(m->op) {
+        case OP_MINUS: use_opd = 1; break;
+        case OP_NOT: use_opd = 3; break;
+    }
+    if (m->operand != nullptr) {
+        m->operand->accept(*this);
+    }
+    use_opd = 0;
+    first_op = 0;
+}
 
 void SemanticAnalyzer::visit(IfNode *m) {}
 

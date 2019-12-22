@@ -89,6 +89,7 @@ typedef struct __VariableInfo {
     double real_literal;
     string string_literal;
     BooleanLiteral boolean_literal;
+    string var_name;
 } VariableInfo;
 
 struct NodeWithTypeList {

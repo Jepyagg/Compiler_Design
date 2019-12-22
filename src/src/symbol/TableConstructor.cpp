@@ -112,7 +112,7 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
                         std::cout << "something wrong"; break;
                 }
                 tmp += " ";
-                for(uint j = 0; j < (*(symbol_table->entries))[i]->sym_type->array_range.size(); ++j){
+                for(uint j = 0; j < (*(symbol_table->entries))[i]->sym_type->array_range.size(); ++j) {
                     tmp += "[";
                     tmp += to_string((*(symbol_table->entries))[i]->sym_type->array_range[j].end - (*(symbol_table->entries))[i]->sym_type->array_range[j].start);
                     tmp += "]";
@@ -214,6 +214,7 @@ void TableConstructor::visit(ProgramNode *m) {
     vector<VariableInfo*> tmp2;
     tmp->type_set = UNKNOWN_SET;
     tmp->type = TYPE_VOID;
+    tmp->var_name = m->program_name;
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(m->program_name, KIND_PROG, 0, tmp, tmp2);
     symbol_table_list[0]->entries->push_back(symbol_entry);
     current_table = symbol_table;
@@ -251,6 +252,7 @@ void TableConstructor::visit(VariableNode *m) {
     if(name_len_check.length() > 32) {
         name_len_check = name_len_check.assign(m->variable_name, 0, 32);
     }
+    m->type->var_name = name_len_check;
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(name_len_check, KIND_VAR, level_cnt, m->type, tmp2);
     if(m->constant_value_node != nullptr) {
         symbol_entry->sym_attribute.push_back(m->type);
@@ -290,6 +292,7 @@ void TableConstructor::visit(FunctionNode *m) {
         name_len_check = name_len_check.assign(m->function_name, 0, 32);
     }
 
+    m->return_type->var_name = name_len_check;
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(
                 name_len_check, 
                 KIND_FUNC, 

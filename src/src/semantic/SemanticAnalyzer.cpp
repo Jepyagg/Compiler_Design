@@ -30,6 +30,7 @@ extern vector<SymbolTableNode*> symbol_table_list;
 
 SymbolTableNode* sem_table = nullptr;
 SymbolTableNode* func_table = nullptr;
+vector<SymbolTableNode*> for_lp_table;
 vector<string> for_check_vec;
 int for_check_p = 0, first_op = 0, second_op = 0, use_opd = 0;
 int if_cond = 0;
@@ -302,7 +303,18 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         space_arrow(first_type->var_col);
         clear_tmp();
         return;
-    }    
+    }
+    if(for_lp_table.size() != 0) {
+        for(uint i = 0; i < for_check_vec.size(); ++i) {
+            if(first_type->var_name == for_check_vec[i]) {
+                std::cerr << "<Error> Found in line " << first_type->var_line << ", column " << first_type->var_col << ": the value of loop variable cannot be modified inside the loop\n";
+                std::cerr << "    " << arr_token[first_type->var_line] << '\n';
+                space_arrow(first_type->var_col);
+                clear_tmp();
+                return;
+            }
+        }
+    }
 
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
@@ -389,26 +401,40 @@ void SemanticAnalyzer::visit(ReadNode *m) {
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
     }
-    VariableInfo* right_type = nullptr;
-    right_type = type_list.back();
-    type_list.pop_back();
 
-    if(right_type->type_set == SET_CONSTANT_LITERAL) {
-        std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement cannot be a constant variable reference\n";
-        std::cerr << "    " << arr_token[right_type->var_line] << '\n';
-        space_arrow(right_type->var_col);
-        clear_tmp();
-        right_type = nullptr;
-        return;
-    }
+    if(type_list.size() != 0) {
+        VariableInfo* right_type = nullptr;
+        right_type = type_list.back();
+        type_list.pop_back();
 
-    if(right_type->type_set == SET_ACCUMLATED && right_type->array_range.size() != right_type->var_dim) {
-        std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement must be scalar type\n";
-        std::cerr << "    " << arr_token[right_type->var_line] << '\n';
-        space_arrow(right_type->var_col);
-        clear_tmp();
-        right_type = nullptr;
-        return;
+        for(uint i = 0; i < for_check_vec.size(); ++i) {
+            if(right_type->var_name == for_check_vec[i]) {
+                std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": the value of loop variable cannot be modified inside the loop\n";
+                std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+                space_arrow(right_type->var_col);
+                clear_tmp();
+                right_type = nullptr;
+                return;
+            }
+        }
+
+        if(right_type->type_set == SET_CONSTANT_LITERAL) {
+            std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement cannot be a constant variable reference\n";
+            std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+            space_arrow(right_type->var_col);
+            clear_tmp();
+            right_type = nullptr;
+            return;
+        }
+
+        if(right_type->type_set == SET_ACCUMLATED && right_type->array_range.size() != right_type->var_dim) {
+            std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement must be scalar type\n";
+            std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+            space_arrow(right_type->var_col);
+            clear_tmp();
+            right_type = nullptr;
+            return;
+        }
     }
 }
 
@@ -428,6 +454,22 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
                 tmp_arr->var_col = m->col_number;
                 error_p = 1;
                 dimension_cnt = (*sem_table->entries)[i]->sym_type->array_range.size();
+                tmp_arr->var_dim = dimension_cnt;
+                break;
+            }
+        }
+    }
+    if(for_lp_table.size() != 0) {
+        for(uint i = 0; i < for_lp_table.size(); ++i) {
+            string tmp = (*for_lp_table[0]->entries)[0]->sym_name;
+            if(m->variable_name == tmp) { // have declare
+                tmp_arr->type_set = (*for_lp_table[0]->entries)[0]->sym_type->type_set;
+                tmp_arr->type = (*for_lp_table[0]->entries)[0]->sym_type->type;
+                tmp_arr->var_name = m->variable_name;
+                tmp_arr->var_line = m->line_number;
+                tmp_arr->var_col = m->col_number;
+                error_p = 1;
+                dimension_cnt = (*for_lp_table[0]->entries)[0]->sym_type->array_range.size();
                 tmp_arr->var_dim = dimension_cnt;
                 break;
             }
@@ -753,11 +795,13 @@ void SemanticAnalyzer::visit(ForNode *m) {
         return;
     }
 
+    for_lp_table.push_back(m->symbol_table_node);
     if (m->body != nullptr) {
         for(uint i = 0; i < m->body->size(); ++i) {
             (*(m->body))[i]->accept(*this);
         }
     }
+    for_lp_table.pop_back();
     for_check_vec.pop_back();
     for_check_p = 0;
 }

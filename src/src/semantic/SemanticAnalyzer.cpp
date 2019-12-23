@@ -34,7 +34,6 @@ SymbolTableNode* func_table = nullptr;
 vector<SymbolTableNode*> for_lp_table;
 vector<string> for_check_vec;
 int for_check_p = 0, use_opd = 0;
-int if_cond = 0, while_cond = 0, no_if_body = 0;
 int arr_line = 0, arr_col = 0, arr_ref_check = 0;
 VariableInfo* first_type = nullptr;
 VariableInfo* second_type = nullptr;
@@ -535,29 +534,24 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         default: break;
     }
 
-    // if(if_cond == 1 && (use_opd != 3 && use_opd != 4)) {
-    //     std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": the expression of condition must be boolean type\n";
-    //     std::cerr << "    " << arr_token[m->line_number] << '\n';
-    //     space_arrow(m->col_number);
-    //     clear_tmp();
-    //     no_if_body = 0;
-    //     return;
-    // }
-    // if_cond = 0;
-
-    // cout << type_list.size() << "    asdfasdf     no child\n";
-    int own_opt = use_opd;
+    int own_opt = use_opd, opr_cnt = type_list.size();
+    // cout << type_list.size() << "      no\n";
     if (m->left_operand != nullptr) {
         m->left_operand->accept(*this);
+        // opr_cnt++;
     }
-    // cout << type_list.size() << "    asdfasdf     left finish\n";
     use_opd = own_opt;
+    // cout << type_list.size() << "      left\n";
     if (m->right_operand != nullptr) {
         m->right_operand->accept(*this);
+        // opr_cnt++;
     }
-    // cout << type_list.size() << "    asdfasdf     right finish\n";
+    // cout << type_list.size() << "      finish\n";
     use_opd = own_opt;
-    if(type_list.size() < 2) {
+    if((type_list.size() - opr_cnt) < 2) {
+        for(int i = 0; i < type_list.size() - opr_cnt; ++i) {
+            type_list.pop_back();
+        }
         return;
     }
     VariableInfo* left_op = nullptr;
@@ -668,8 +662,13 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
         default: break;
     }
 
+    int own_opt = use_opd, opr_cnt = type_list.size();
     if (m->operand != nullptr) {
         m->operand->accept(*this);
+    }
+    use_opd = own_opt;
+    if((type_list.size() - opr_cnt) < 1) {
+        return;
     }
 
     VariableInfo* left_op = nullptr;
@@ -714,13 +713,13 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
 
 void SemanticAnalyzer::visit(IfNode *m) {
     
-    if_cond = 1;
     if (m->condition != nullptr) {
         m->condition->accept(*this);
     }
     if(type_list.size() == 0) {
         return ;
     }
+    // cout << type_list.size() << "      if\n";
     VariableInfo* if_condition_type = nullptr;
     if_condition_type = type_list.back();
     type_list.pop_back();
@@ -745,22 +744,34 @@ void SemanticAnalyzer::visit(IfNode *m) {
             (*(m->body_of_else))[i]->accept(*this);
         }
     }
-    if_cond = 0;
 }
 
 void SemanticAnalyzer::visit(WhileNode *m) {
-    // cout << " in while\n";
+    
     if (m->condition != nullptr) {
         m->condition->accept(*this);
     }
-    // cout << " out con\n";
+
+    if(type_list.size() == 0) {
+        return ;
+    }
+    VariableInfo* while_condition_type = nullptr;
+    while_condition_type = type_list.back();
+    type_list.pop_back();
+
+    if(while_condition_type->type != TYPE_BOOLEAN) {
+        std::cerr << "<Error> Found in line " << while_condition_type->var_line << ", column " << while_condition_type->var_col << ": the expression of condition must be boolean type\n";
+        std::cerr << "    " << arr_token[while_condition_type->var_line] << '\n';
+        space_arrow(while_condition_type->var_col);
+        clear_tmp();
+        return;
+    }
 
     if (m->body != nullptr) {
         for(uint i = 0; i < m->body->size(); ++i) {
             (*(m->body))[i]->accept(*this);
         }
     }
-    // cout << " out while\n";
 }
 
 void SemanticAnalyzer::visit(ForNode *m) {

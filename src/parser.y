@@ -442,31 +442,24 @@ For     : FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO StatementList END DO { // 
             DeclarationNode* declaration_node = new DeclarationNode(@2.first_line, @2.first_column, var_list);
 
             // initial: an assignment node
-            VariableReferenceNode* variable_reference_node = new VariableReferenceNode(
-                @2.first_line,
-                @2.first_column,
-                string($2),
-                nullptr
-            );
+            VariableReferenceNode* variable_reference_node = new VariableReferenceNode(@2.first_line, @2.first_column, string($2), nullptr);
 
             VariableInfo* constant_value_info = new VariableInfo();
             constant_value_info->type_set = SET_CONSTANT_LITERAL;
             constant_value_info->type = TYPE_INTEGER;
             constant_value_info->int_literal = $4;
-            ConstantValueNode* constant_value_node = new ConstantValueNode(
-                @4.first_line,
-                @4.first_column,
-                constant_value_info
-            );
+            ConstantValueNode* constant_value_node = new ConstantValueNode(@4.first_line, @4.first_column, constant_value_info);
 
-            AssignmentNode* assignment_node = new AssignmentNode(
-                @3.first_line,
-                @3.first_column,
-                variable_reference_node,
-                constant_value_node // expression node
-            );
+            AssignmentNode* assignment_node = new AssignmentNode(@3.first_line, @3.first_column, variable_reference_node, constant_value_node);
 
-            // condition: an expression node ( constant value node )
+            // condition: an expression node ( constant value node 1)
+            VariableInfo* constant_value_info3 = new VariableInfo();
+            constant_value_info3->type_set = SET_CONSTANT_LITERAL;
+            constant_value_info3->type = TYPE_INTEGER;
+            constant_value_info3->int_literal = $4;
+            ConstantValueNode* constant_value_node3 = new ConstantValueNode(@4.first_line, @4.first_column, constant_value_info3);
+
+            // condition: an expression node ( constant value node 2)
             VariableInfo* constant_value_info2 = new VariableInfo();
             constant_value_info2->type_set = SET_CONSTANT_LITERAL;
             constant_value_info2->type = TYPE_INTEGER;
@@ -474,7 +467,7 @@ For     : FOR ID ASSIGN INT_LITERAL TO INT_LITERAL DO StatementList END DO { // 
             ConstantValueNode* constant_value_node2 = new ConstantValueNode(@6.first_line, @6.first_column, constant_value_info2);
 
             // For Node
-            $$ = new ForNode(@1.first_line, @1.first_column, declaration_node, assignment_node, constant_value_node2, $8);
+            $$ = new ForNode(@1.first_line, @1.first_column, declaration_node, assignment_node, constant_value_node3, constant_value_node2, $8);
 
             free($2);
         }

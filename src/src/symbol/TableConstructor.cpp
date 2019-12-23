@@ -332,7 +332,7 @@ void TableConstructor::visit(FunctionNode *m) {
     if (m->body != nullptr) {
         m->body->accept(*this);
     }
-    // m->symbol_table_node = symbol_table;
+    m->symbol_table_node = current_table;
     // dumpSymbol(m->symbol_table_node);
     // level_cnt--;
 }
@@ -370,6 +370,7 @@ void TableConstructor::visit(CompoundStatementNode *m) {
     }
     // cout << level_cnt << '\n'
     dumpSymbol(m->symbol_table_node);
+    current_table = m->symbol_table_node;
     level_cnt--;
 }
 
@@ -460,10 +461,12 @@ void TableConstructor::visit(ForNode *m) {
 
     level_cnt++;
     for_check = 1;
+    int loop_var_size = 0;
     if (m->loop_variable_declaration != nullptr) {
         m->loop_variable_declaration->accept(*this);
         for(uint i = 0; i < current_table->entries->size(); ++i) {
             (*m->symbol_table_node->entries)[0]->sym_kind = KIND_LP_VAR;
+            loop_var_size = 1;
         }
     }
     
@@ -482,6 +485,9 @@ void TableConstructor::visit(ForNode *m) {
     } 
     for_check = 0;
     level_cnt--;
+    if(loop_var_size == 1) {
+        for_name_check.pop_back();
+    }
     dumpSymbol(m->symbol_table_node);
 }
 

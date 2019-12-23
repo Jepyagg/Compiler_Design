@@ -432,7 +432,6 @@ void TableConstructor::visit(IfNode *m) {
     }
 
     if (m->body_of_else != nullptr){
-        std::cout << "else\n";
         for(uint i = 0; i < m->body_of_else->size(); ++i) {
             (*(m->body_of_else))[i]->accept(*this);
         }

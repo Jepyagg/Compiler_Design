@@ -20,6 +20,7 @@
 #include "AST/symbol_table.hpp"
 
 #include <iostream>
+#include <stack>
 #include <iomanip>
 #include <cstdio>
 
@@ -32,14 +33,14 @@ SymbolTableNode* sem_table = nullptr;
 SymbolTableNode* func_table = nullptr;
 vector<SymbolTableNode*> for_lp_table;
 vector<string> for_check_vec;
-int for_check_p = 0, first_op = 0, second_op = 0, use_opd = 0;
-int if_cond = 0;
+int for_check_p = 0, use_opd = 0;
+int if_cond = 0, while_cond = 0, no_if_body = 0;
 int arr_line = 0, arr_col = 0, arr_ref_check = 0;
 VariableInfo* first_type = nullptr;
 VariableInfo* second_type = nullptr;
 VariableInfo* tmp_type = nullptr;
 vector<VariableInfo*> type_list;
-string func_name = "";
+string func_name = "", forloop_var = "";
 
 
 VariableInfo* search_table(VariableInfo* target) {
@@ -83,7 +84,6 @@ string type_return(VariableInfo* info) {
     }
     if(info->type_set == SET_ACCUMLATED) {
         VariableInfo* find_type = search_table(info);
-        // cout << find_type->array_range.size() << "          asdf      " << info->array_range.size() << '\n';
         if(find_type->array_range.size() != info->array_range.size()) {
             s += " ";
             for(uint i = info->array_range.size(); i < find_type->array_range.size(); ++i){
@@ -97,8 +97,6 @@ string type_return(VariableInfo* info) {
 }
 
 void clear_tmp() {
-    first_op = 0;
-    second_op = 0;
     first_type = nullptr;
     second_type = nullptr;
     tmp_type = nullptr;
@@ -188,7 +186,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
             }
         }
         if(check_redecl == 0) {
-            for_check_vec.push_back(name_len_check);
+            forloop_var = name_len_check;
             // (*sem_table->entries)[0]->decl_check = 1;
         }
     }
@@ -208,24 +206,16 @@ void SemanticAnalyzer::visit(VariableNode *m) {
 }
 
 void SemanticAnalyzer::visit(ConstantValueNode *m) {
-    // cout << "'  twsetconstset\n";
     if(arr_ref_check != 1) {
+        m->constant_value->var_line = m->line_number;
+        m->constant_value->var_col = m->col_number;
         type_list.push_back(m->constant_value);
         return ;
     }
-    // type_list.push_back(m->constant_value);
-    // if(use_opd != 0 && arr_ref_check != 1) {
-    //     type_list.push_back(m->constant_value);
-    //     return;
-    // }
-    // if(for_check_p == 1) {
-    //     type_list.push_back(m->constant_value);
-    //     return;
-    // }
     if(arr_ref_check == 1) {
         tmp_type = m->constant_value;
-        arr_line = m->line_number;
-        arr_col = m->col_number;
+        tmp_type->var_line = m->line_number;
+        tmp_type->var_col = m->col_number;
     }
 }
 
@@ -340,33 +330,9 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
             }
         }
         if(first_type->type != second_type->type && type_con == 0) {
-            std::cerr << "<Error> Found in line " << m->line_number + 2 << ", column " << m->col_number + 2 << ": assigning to '";
-            switch(first_type->type) {
-                case TYPE_INTEGER: 
-                    std::cerr << "integer"; break;
-                case TYPE_REAL:    
-                    std::cerr << "real"; break;
-                case TYPE_STRING:  
-                    std::cerr << "string"; break;
-                case TYPE_BOOLEAN: 
-                    std::cerr << "boolean"; break;
-                default:           
-                    std::cerr << "something wrong"; break;
-            }
-            std::cerr << "' from incompatible type '";
-            switch(second_type->type) {
-                case TYPE_INTEGER: 
-                    std::cerr << "integer"; break;
-                case TYPE_REAL:    
-                    std::cerr << "real"; break;
-                case TYPE_STRING:  
-                    std::cerr << "string"; break;
-                case TYPE_BOOLEAN: 
-                    std::cerr << "boolean"; break;
-                default:           
-                    std::cerr << "something wrong"; break;
-            }
-            std::cerr << "'\n";
+            string first_ans = type_return(first_type), second_ans = type_return(second_type);
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": assigning to '";
+            std::cerr << first_ans << "' from incompatible type '" << second_ans << "'\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
             clear_tmp();
@@ -443,38 +409,26 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
     // error detect
     VariableInfo* tmp_arr = new VariableInfo();
     int error_p = 0, dimension_cnt = 0;
-    for(uint i = 0; i < sem_table->entries->size(); ++i) {
-        string tmp = (*sem_table->entries)[i]->sym_name;
-        if((*sem_table->entries)[i]->sym_kind == KIND_VAR || (*sem_table->entries)[i]->sym_kind == KIND_CONST || (*sem_table->entries)[i]->sym_kind == KIND_PARAM || (*sem_table->entries)[i]->sym_kind == KIND_LP_VAR) {
-            if(m->variable_name == tmp && (*sem_table->entries)[i]->decl_check == 1) { // have declare
-                tmp_arr->type_set = (*sem_table->entries)[i]->sym_type->type_set;
-                tmp_arr->type = (*sem_table->entries)[i]->sym_type->type;
+
+    // start search global
+    for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
+        string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
+        if((*symbol_table_list[0]->entries)[i]->sym_kind == KIND_VAR || (*symbol_table_list[0]->entries)[i]->sym_kind == KIND_CONST) {
+            if(m->variable_name == tmp && (*symbol_table_list[0]->entries)[i]->decl_check == 1) { // have declare
+                tmp_arr->type_set = (*symbol_table_list[0]->entries)[i]->sym_type->type_set;
+                tmp_arr->type = (*symbol_table_list[0]->entries)[i]->sym_type->type;
                 tmp_arr->var_name = m->variable_name;
                 tmp_arr->var_line = m->line_number;
                 tmp_arr->var_col = m->col_number;
                 error_p = 1;
-                dimension_cnt = (*sem_table->entries)[i]->sym_type->array_range.size();
+                dimension_cnt = (*symbol_table_list[0]->entries)[i]->sym_type->array_range.size();
                 tmp_arr->var_dim = dimension_cnt;
                 break;
             }
         }
     }
-    if(for_lp_table.size() != 0) {
-        for(uint i = 0; i < for_lp_table.size(); ++i) {
-            string tmp = (*for_lp_table[0]->entries)[0]->sym_name;
-            if(m->variable_name == tmp) { // have declare
-                tmp_arr->type_set = (*for_lp_table[0]->entries)[0]->sym_type->type_set;
-                tmp_arr->type = (*for_lp_table[0]->entries)[0]->sym_type->type;
-                tmp_arr->var_name = m->variable_name;
-                tmp_arr->var_line = m->line_number;
-                tmp_arr->var_col = m->col_number;
-                error_p = 1;
-                dimension_cnt = (*for_lp_table[0]->entries)[0]->sym_type->array_range.size();
-                tmp_arr->var_dim = dimension_cnt;
-                break;
-            }
-        }
-    }
+
+    // second search func
     if(func_table != nullptr) {
         for(uint i = 0; i < func_table->entries->size(); ++i) {
             string tmp = (*func_table->entries)[i]->sym_name;
@@ -493,6 +447,42 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
             }
         }
     }
+
+    // third search for loop var
+    if(for_lp_table.size() != 0) {
+        for(uint i = 0; i < for_lp_table.size(); ++i) {
+            string tmp = (*for_lp_table[0]->entries)[0]->sym_name;
+            if(m->variable_name == tmp) { // have declare
+                tmp_arr->type_set = (*for_lp_table[0]->entries)[0]->sym_type->type_set;
+                tmp_arr->type = (*for_lp_table[0]->entries)[0]->sym_type->type;
+                tmp_arr->var_name = m->variable_name;
+                tmp_arr->var_line = m->line_number;
+                tmp_arr->var_col = m->col_number;
+                error_p = 1;
+                dimension_cnt = (*for_lp_table[0]->entries)[0]->sym_type->array_range.size();
+                tmp_arr->var_dim = dimension_cnt;
+                break;
+            }
+        }
+    }
+
+    // finally search local
+    for(uint i = 0; i < sem_table->entries->size(); ++i) {
+        string tmp = (*sem_table->entries)[i]->sym_name;
+        if((*sem_table->entries)[i]->sym_kind == KIND_VAR || (*sem_table->entries)[i]->sym_kind == KIND_CONST || (*sem_table->entries)[i]->sym_kind == KIND_PARAM || (*sem_table->entries)[i]->sym_kind == KIND_LP_VAR) {
+            if(m->variable_name == tmp && (*sem_table->entries)[i]->decl_check == 1) { // have declare
+                tmp_arr->type_set = (*sem_table->entries)[i]->sym_type->type_set;
+                tmp_arr->type = (*sem_table->entries)[i]->sym_type->type;
+                tmp_arr->var_name = m->variable_name;
+                tmp_arr->var_line = m->line_number;
+                tmp_arr->var_col = m->col_number;
+                error_p = 1;
+                dimension_cnt = (*sem_table->entries)[i]->sym_type->array_range.size();
+                tmp_arr->var_dim = dimension_cnt;
+                break;
+            }
+        }
+    }
     if(error_p == 0) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": use of undeclared identifier '" << m->variable_name << "'\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -505,17 +495,13 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
         for(uint i = 0; i < m->expression_node_list->size(); ++i) {
             (*(m->expression_node_list))[i]->accept(*this);
             if(tmp_type->type != TYPE_INTEGER) {
-                std::cerr << "<Error> Found in line " << arr_line << ", column " << arr_col << ": index of array reference must be an integer\n";
-                std::cerr << "    " << arr_token[arr_line] << '\n';
-                space_arrow(arr_col);
+                std::cerr << "<Error> Found in line " << tmp_type->var_line << ", column " << tmp_type->var_col << ": index of array reference must be an integer\n";
+                std::cerr << "    " << arr_token[tmp_type->var_line] << '\n';
+                space_arrow(tmp_type->var_col);
                 clear_tmp();
-                arr_line = 0;
-                arr_col = 0;
                 return;
             }
             tmp_arr->array_range.push_back({1, 1});
-            arr_line = 0;
-            arr_col = 0;
             dimension_cnt--;
         }
         arr_ref_check = 0;
@@ -531,7 +517,6 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 }
 
 void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
-    // cout << "'  twsetsbooolet\n";
     string opt = "";
     switch(m->op) {
         case OP_PLUS: use_opd = 5; opt = "+"; break;
@@ -549,13 +534,32 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         case OP_NOT_EQUAL: use_opd = 4; opt = "<>"; break;
         default: break;
     }
+
+    // if(if_cond == 1 && (use_opd != 3 && use_opd != 4)) {
+    //     std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": the expression of condition must be boolean type\n";
+    //     std::cerr << "    " << arr_token[m->line_number] << '\n';
+    //     space_arrow(m->col_number);
+    //     clear_tmp();
+    //     no_if_body = 0;
+    //     return;
+    // }
+    // if_cond = 0;
+
+    // cout << type_list.size() << "    asdfasdf     no child\n";
+    int own_opt = use_opd;
     if (m->left_operand != nullptr) {
         m->left_operand->accept(*this);
     }
+    // cout << type_list.size() << "    asdfasdf     left finish\n";
+    use_opd = own_opt;
     if (m->right_operand != nullptr) {
         m->right_operand->accept(*this);
     }
-
+    // cout << type_list.size() << "    asdfasdf     right finish\n";
+    use_opd = own_opt;
+    if(type_list.size() < 2) {
+        return;
+    }
     VariableInfo* left_op = nullptr;
     VariableInfo* right_op = nullptr;
 
@@ -565,7 +569,6 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
     type_list.pop_back();
     int str_plus = 0;
     string left_out = type_return(left_op), right_out = type_return(right_op);
-    // cout << "'  twsetsetokokokok\n";
     if(use_opd == 1 || use_opd == 5) {
         if( (left_out != "integer" && left_out != "real") || (right_out != "integer" && right_out != "real")) {
             if(use_opd == 5 && (left_out == "string" && right_out == "string")) {
@@ -584,14 +587,23 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         if(left_op->type == TYPE_REAL || right_op->type == TYPE_REAL) {
             VariableInfo* tmp = new VariableInfo();
             tmp->type = TYPE_REAL;
+            tmp->var_name = opt;
+            tmp->var_line = m->line_number;
+            tmp->var_col = m ->col_number;
             type_list.push_back(tmp);
         } else if(left_op->type == TYPE_STRING && right_op->type == TYPE_STRING && use_opd == 5) {
             VariableInfo* tmp = new VariableInfo();
             tmp->type = TYPE_STRING;
+            tmp->var_name = opt;
+            tmp->var_line = m->line_number;
+            tmp->var_col = m ->col_number;
             type_list.push_back(tmp);
         } else {
             VariableInfo* tmp = new VariableInfo();
             tmp->type = TYPE_INTEGER;
+            tmp->var_name = opt;
+        tmp->var_line = m->line_number;
+        tmp->var_col = m ->col_number;
             type_list.push_back(tmp);
         }
     } else if(use_opd == 2) {
@@ -606,6 +618,9 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         }
         VariableInfo* tmp = new VariableInfo();
         tmp->type = TYPE_INTEGER;
+        tmp->var_name = opt;
+        tmp->var_line = m->line_number;
+        tmp->var_col = m ->col_number;
         type_list.push_back(tmp);
     } else if(use_opd == 3) {
         if(left_out != "boolean" || right_out != "boolean") {
@@ -619,9 +634,11 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         }
         VariableInfo* tmp = new VariableInfo();
         tmp->type = TYPE_BOOLEAN;
+        tmp->var_name = opt;
+        tmp->var_line = m->line_number;
+        tmp->var_col = m ->col_number;
         type_list.push_back(tmp);
     } else if(use_opd == 4) {
-        // cout << "'  twsetseteeeeeee\n";
         if((left_out != "integer" && left_out != "real") || (right_out != "integer" && right_out != "real")) {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
             std::cerr << left_out << "' and '" << right_out << "')\n";
@@ -633,33 +650,13 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         }
         VariableInfo* tmp = new VariableInfo();
         tmp->type = TYPE_BOOLEAN;
+        tmp->var_name = opt;
+        tmp->var_line = m->line_number;
+        tmp->var_col = m ->col_number;
         type_list.push_back(tmp);
     }
-
-    if(if_cond == 1 && (use_opd != 3 && use_opd != 4)) {
-        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": the expression of condition must be boolean type\n";
-        std::cerr << "    " << arr_token[m->line_number] << '\n';
-        space_arrow(m->col_number);
-        clear_tmp();
-        if_cond = 0;
-        return;
-    } 
-    // cout << "' 1111 twsetset\n";
-    if (m->left_operand != nullptr) {
-        m->left_operand->accept(*this);
-        // cout << type_list.size() << "      asdf\n";
-        type_list.pop_back();
-    }
-
-    if (m->right_operand != nullptr) {
-        m->right_operand->accept(*this);
-        // cout << type_list.size() << "      asdfeeee\n";
-        type_list.pop_back();
-    }
-    // cout << "'  twsetsennnnnnndet\n";
+ 
     use_opd = 0;
-    first_op = 0;
-    second_op = 0;
 }
 
 void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
@@ -712,12 +709,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
         tmp->type = TYPE_BOOLEAN;
         type_list.push_back(tmp);
     }
-
-    if (m->operand != nullptr) {
-        m->operand->accept(*this);
-    }
     use_opd = 0;
-    first_op = 0;
 }
 
 void SemanticAnalyzer::visit(IfNode *m) {
@@ -726,33 +718,49 @@ void SemanticAnalyzer::visit(IfNode *m) {
     if (m->condition != nullptr) {
         m->condition->accept(*this);
     }
-
-    if(if_cond == 1) {
-        if (m->body != nullptr) {
-            for(uint i = 0; i < m->body->size(); ++i) {
-                (*(m->body))[i]->accept(*this);
-            }
-        }
-
-        if (m->body_of_else != nullptr) {
-            for(uint i = 0; i < m->body_of_else->size(); ++i) {
-                (*(m->body_of_else))[i]->accept(*this);
-            }
-        }
+    if(type_list.size() == 0) {
+        return ;
     }
-    if_cond = 0;
-}
+    VariableInfo* if_condition_type = nullptr;
+    if_condition_type = type_list.back();
+    type_list.pop_back();
 
-void SemanticAnalyzer::visit(WhileNode *m) {
-    if (m->condition != nullptr) {
-        m->condition->accept(*this);
+    if(if_condition_type->type != TYPE_BOOLEAN) {
+        std::cerr << "<Error> Found in line " << if_condition_type->var_line << ", column " << if_condition_type->var_col << ": the expression of condition must be boolean type\n";
+        std::cerr << "    " << arr_token[if_condition_type->var_line] << '\n';
+        space_arrow(if_condition_type->var_col);
+        clear_tmp();
+        return;
     }
+
 
     if (m->body != nullptr) {
         for(uint i = 0; i < m->body->size(); ++i) {
             (*(m->body))[i]->accept(*this);
         }
     }
+
+    if (m->body_of_else != nullptr) {
+        for(uint i = 0; i < m->body_of_else->size(); ++i) {
+            (*(m->body_of_else))[i]->accept(*this);
+        }
+    }
+    if_cond = 0;
+}
+
+void SemanticAnalyzer::visit(WhileNode *m) {
+    // cout << " in while\n";
+    if (m->condition != nullptr) {
+        m->condition->accept(*this);
+    }
+    // cout << " out con\n";
+
+    if (m->body != nullptr) {
+        for(uint i = 0; i < m->body->size(); ++i) {
+            (*(m->body))[i]->accept(*this);
+        }
+    }
+    // cout << " out while\n";
 }
 
 void SemanticAnalyzer::visit(ForNode *m) {
@@ -766,10 +774,11 @@ void SemanticAnalyzer::visit(ForNode *m) {
             return;
         }
     }
-    
     if (m->initial_statement != nullptr) {
         m->initial_statement->accept(*this);
     }
+    for_check_vec.push_back(forloop_var);
+    forloop_var = "";
     for_check_p = 1;
     if (m->condition2 != nullptr) {
         m->condition2->accept(*this);
@@ -810,12 +819,9 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
     if (m->return_value != nullptr) {
         m->return_value->accept(*this);
     }
-    // cout << "'  twsetseee3333et\n";
     VariableInfo* return_type = nullptr;
-    // cout << type_list.size() << "      aefsdsaf\n";
     return_type = type_list.back();
     type_list.pop_back();
-    // cout << "'  twsetse111111t\n";
     string ret_type = type_return(return_type), func_type = "";
     for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
         string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
@@ -825,7 +831,6 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
             }
         }
     }
-    // cout << "'  twsetset\n";
     if(func_table == nullptr) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program/procedure should not return a value\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -840,23 +845,20 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
         space_arrow(return_type->var_col);
         return ;
     }
-    // cout << "'  twsetssaedfsfdet\n";
 }
 
 void SemanticAnalyzer::visit(FunctionCallNode *m) {
 
     // error detect
     int error_p = 0;
+    vector<VariableInfo*> param_info;
     for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
         string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
         if((*symbol_table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
             if(m->function_name == tmp && (*symbol_table_list[0]->entries)[i]->decl_check == 1) { // have declare
                 second_type = (*symbol_table_list[0]->entries)[i]->sym_type;
+                param_info = (*symbol_table_list[0]->entries)[i]->sym_attribute;
                 error_p = 1;
-                if(use_opd != 0) {
-                    type_list.push_back((*symbol_table_list[0]->entries)[i]->sym_type);
-                    return;
-                }
                 break;
             }
         }
@@ -868,9 +870,42 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
         return ; // undeclare not need to check arguements
     }
 
+    // check parameters
+    int param_cnt = 0;
     if (m->arguments != nullptr) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
             (*(m->arguments))[i]->accept(*this);
+            param_cnt++;
         }
+    }
+
+    if(param_cnt != param_info.size()) {
+        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": too few/much arguments to function invocation\n";
+        std::cerr << "    " << arr_token[m->line_number] << '\n';
+        space_arrow(m->col_number);
+        return ; // function call param need more
+    }
+
+    stack<VariableInfo*> func_param;
+    for(uint i = 0; i < param_cnt; ++i) {
+        VariableInfo* tmp = type_list.back();
+        type_list.pop_back();
+        func_param.push(tmp);
+    }
+    for(uint i = 0; i < param_cnt; ++i) {
+        VariableInfo* tmp = func_param.top();
+        func_param.pop();
+        string call_param = type_return(tmp), acc_param = type_return(param_info[i]);
+        if(call_param != acc_param) {
+            std::cerr << "<Error> Found in line " << tmp->var_line << ", column " << tmp->var_col << ": incompatible types passing '" << call_param;
+            std::cerr << "' to parameter of type '" << acc_param << "'\n";
+            std::cerr << "    " << arr_token[tmp->var_line] << '\n';
+            space_arrow(tmp->var_col);
+            return ; // function call param type wrong
+        }
+    }
+
+    if(use_opd != 0) {
+        type_list.push_back(second_type);
     }
 }

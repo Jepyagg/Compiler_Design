@@ -75,7 +75,7 @@ string type_return(VariableInfo* info) {
         VariableInfo* find_type = search_table(info);
         if(find_type->array_range.size() != info->array_range.size()) {
             s += " ";
-            for(uint i = 0; i < info->array_range.size(); ++i){
+            for(uint i = 0; i < find_type->array_range.size() - info->array_range.size(); ++i){
                 s += "[";
                 s += to_string(find_type->array_range[i].end - find_type->array_range[i].start);
                 s += "]";
@@ -197,7 +197,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
 }
 
 void SemanticAnalyzer::visit(ConstantValueNode *m) {
-    if(use_opd != 0) {
+    if(use_opd != 0 && arr_ref_check != 1) {
         type_list.push_back(m->constant_value);
         return;
     }
@@ -263,14 +263,38 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
     }
-    first_type = tmp_type;
-    tmp_type = nullptr;
-        
+    if(type_list.size() == 0) return;
+    first_type = type_list.back();
+    type_list.pop_back();
+    if(first_type->type_set == SET_CONSTANT_LITERAL) {
+        std::cerr << "<Error> Found in line " << first_type->var_line << ", column " << first_type->var_col << ": cannot assign to variable '" << first_type->var_name << "' which is a constant\n";
+        std::cerr << "    " << arr_token[first_type->var_line] << '\n';
+        space_arrow(first_type->var_col);
+        clear_tmp();
+        return;
+    }
+    if(first_type->type_set == SET_ACCUMLATED && first_type->array_range.size() != first_type->var_dim) {
+        std::cerr << "<Error> Found in line " << first_type->var_line << ", column " << first_type->var_col << ": array assignment is not allowed\n";
+        std::cerr << "    " << arr_token[first_type->var_line] << '\n';
+        space_arrow(first_type->var_col);
+        clear_tmp();
+        return;
+    }    
+
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
-    second_type = tmp_type;
-    tmp_type = nullptr;
+    if(type_list.size() == 0) return;
+    second_type = type_list.back();
+    type_list.pop_back();
+
+    if(second_type->type_set == SET_ACCUMLATED && second_type->array_range.size() != second_type->var_dim) {
+        std::cerr << "<Error> Found in line " << second_type->var_line << ", column " << second_type->var_col << ": array assignment is not allowed\n";
+        std::cerr << "    " << arr_token[second_type->var_line] << '\n';
+        space_arrow(second_type->var_col);
+        clear_tmp();
+        return;
+    }  
 
     // error detect
     int type_con = 0;
@@ -322,38 +346,64 @@ void SemanticAnalyzer::visit(PrintNode *m) {
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
+    VariableInfo* right_type = nullptr;
+    right_type = type_list.back();
+    type_list.pop_back();
+    string print_type_check = type_return(right_type);
+    if(print_type_check != "integer" && print_type_check != "real" && print_type_check != "string" && print_type_check != "boolean") {
+        std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of print statement must be scalar type\n";
+        std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+        space_arrow(right_type->var_col);
+        clear_tmp();
+        right_type = nullptr;
+        return;
+    }
 }
 
 void SemanticAnalyzer::visit(ReadNode *m) {
     if (m->variable_reference_node != nullptr) {
-        read_check = 1;
         m->variable_reference_node->accept(*this);
-        read_check = 0;
+    }
+    VariableInfo* right_type = nullptr;
+    right_type = type_list.back();
+    type_list.pop_back();
+
+    if(right_type->type_set == SET_CONSTANT_LITERAL) {
+        std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement cannot be a constant variable reference\n";
+        std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+        space_arrow(right_type->var_col);
+        clear_tmp();
+        right_type = nullptr;
+        return;
+    }
+
+    if(right_type->type_set == SET_ACCUMLATED && right_type->array_range.size() != right_type->var_dim) {
+        std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": variable reference of read statement must be scalar type\n";
+        std::cerr << "    " << arr_token[right_type->var_line] << '\n';
+        space_arrow(right_type->var_col);
+        clear_tmp();
+        right_type = nullptr;
+        return;
     }
 }
 
 void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 
-    VariableInfo* tmp_arr = nullptr;
-
-    if(use_opd != 0) {
-        tmp_arr = new VariableInfo();
-    }
-
     // error detect
+    VariableInfo* tmp_arr = new VariableInfo();
     int error_p = 0, dimension_cnt = 0;
     for(uint i = 0; i < sem_table->entries->size(); ++i) {
         string tmp = (*sem_table->entries)[i]->sym_name;
         if((*sem_table->entries)[i]->sym_kind == KIND_VAR || (*sem_table->entries)[i]->sym_kind == KIND_CONST || (*sem_table->entries)[i]->sym_kind == KIND_PARAM || (*sem_table->entries)[i]->sym_kind == KIND_LP_VAR) {
             if(m->variable_name == tmp && (*sem_table->entries)[i]->decl_check == 1) { // have declare
-                tmp_type = (*sem_table->entries)[i]->sym_type;
-                if(use_opd != 0) {
-                    tmp_arr->type_set = (*sem_table->entries)[i]->sym_type->type_set;
-                    tmp_arr->type = (*sem_table->entries)[i]->sym_type->type;
-                    tmp_arr->var_name = m->variable_name;
-                }
+                tmp_arr->type_set = (*sem_table->entries)[i]->sym_type->type_set;
+                tmp_arr->type = (*sem_table->entries)[i]->sym_type->type;
+                tmp_arr->var_name = m->variable_name;
+                tmp_arr->var_line = m->line_number;
+                tmp_arr->var_col = m->col_number;
                 error_p = 1;
                 dimension_cnt = (*sem_table->entries)[i]->sym_type->array_range.size();
+                tmp_arr->var_dim = dimension_cnt;
                 break;
             }
         }
@@ -365,29 +415,29 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
         clear_tmp();
         return ; // undeclare not need to check arguements
     }
-    if(tmp_type->type_set == SET_CONSTANT_LITERAL && first_type == nullptr) {
-        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": cannot assign to variable '" << m->variable_name << "' which is a constant\n";
-        std::cerr << "    " << arr_token[m->line_number] << '\n';
-        space_arrow(m->col_number);
-        clear_tmp();
-        return;
-    }
-    if(tmp_type->type_set == SET_ACCUMLATED && m->expression_node_list == nullptr) {
-        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": array assignment is not allowed\n";
-        std::cerr << "    " << arr_token[m->line_number] << '\n';
-        space_arrow(m->col_number);
-        clear_tmp();
-        return;
-    }
-    if(read_check == 1) {
-        if(tmp_type->type_set == SET_ACCUMLATED && m->expression_node_list == nullptr) {
-            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": variable reference of read statement must be scalar type\n";
-            std::cerr << "    " << arr_token[m->line_number] << '\n';
-            space_arrow(m->col_number);
-            clear_tmp();
-            return;
-        }
-    }
+    // if(tmp_type->type_set == SET_CONSTANT_LITERAL && first_type == nullptr && use_opd == 0) {
+    //     std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": cannot assign to variable '" << m->variable_name << "' which is a constant\n";
+    //     std::cerr << "    " << arr_token[m->line_number] << '\n';
+    //     space_arrow(m->col_number);
+    //     clear_tmp();
+    //     return;
+    // }
+    // if(tmp_type->type_set == SET_ACCUMLATED && m->expression_node_list == nullptr && use_opd == 0) {
+    //     std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": array assignment is not allowed\n";
+    //     std::cerr << "    " << arr_token[m->line_number] << '\n';
+    //     space_arrow(m->col_number);
+    //     clear_tmp();
+    //     return;
+    // }
+    // if(read_check == 1) {
+    //     if(tmp_type->type_set == SET_ACCUMLATED && m->expression_node_list == nullptr) {
+    //         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": variable reference of read statement must be scalar type\n";
+    //         std::cerr << "    " << arr_token[m->line_number] << '\n';
+    //         space_arrow(m->col_number);
+    //         clear_tmp();
+    //         return;
+    //     }
+    // }
     if (m->expression_node_list != nullptr) {
         arr_ref_check = 1;
         for(uint i = 0; i < m->expression_node_list->size(); ++i) {
@@ -401,23 +451,21 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
                 arr_col = 0;
                 return;
             }
-            if(use_opd != 0) {
-                tmp_arr->array_range.push_back({1, 1});
-            }
+            tmp_arr->array_range.push_back({1, 1});
             arr_line = 0;
             arr_col = 0;
             dimension_cnt--;
         }
         arr_ref_check = 0;
     }
-    type_list.push_back(tmp_arr);
-    if(dimension_cnt != 0) {
+    if(dimension_cnt < 0) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": there is an over array subscript\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
         clear_tmp();
         return;
     }
+    type_list.push_back(tmp_arr);
 }
 
 void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
@@ -456,20 +504,18 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
     int str_plus = 0;
     string left_out = type_return(left_op), right_out = type_return(right_op);
     if(use_opd == 1 || use_opd == 5) {
-        if(left_op->type != TYPE_INTEGER && left_op->type != TYPE_REAL) {
-            if(right_op->type != TYPE_INTEGER && right_op->type != TYPE_REAL) {
-                if(use_opd == 5 && (left_op->type == TYPE_STRING && right_op->type == TYPE_STRING)) {
-                    str_plus = 1;
-                }
-                if(str_plus == 0) {
-                    std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
-                    std::cerr << left_out << "' and '" << right_out << "')\n";
-                    std::cerr << "    " << arr_token[m->line_number] << '\n';
-                    space_arrow(m->col_number);
-                    clear_tmp();
-                    str_plus = 0;
-                    return;
-                }
+        if( (left_out != "integer" && left_out != "real") || (right_out != "integer" && right_out != "real")) {
+            if(use_opd == 5 && (left_out == "string" && right_out == "string")) {
+                str_plus = 1;
+            }
+            if(str_plus == 0) {
+                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
+                std::cerr << left_out << "' and '" << right_out << "')\n";
+                std::cerr << "    " << arr_token[m->line_number] << '\n';
+                space_arrow(m->col_number);
+                clear_tmp();
+                str_plus = 0;
+                return;
             }
         }
         if(left_op->type == TYPE_REAL || right_op->type == TYPE_REAL) {
@@ -486,7 +532,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             type_list.push_back(tmp);
         }
     } else if(use_opd == 2) {
-        if(left_op->type != TYPE_INTEGER || right_op->type != TYPE_INTEGER) {
+        if(left_out != "integer" || right_out != "integer") {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -499,7 +545,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         tmp->type = TYPE_INTEGER;
         type_list.push_back(tmp);
     } else if(use_opd == 3) {
-        if(left_op->type != TYPE_BOOLEAN || right_op->type != TYPE_BOOLEAN) {
+        if(left_out != "boolean" || right_out != "boolean") {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -512,16 +558,14 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         tmp->type = TYPE_BOOLEAN;
         type_list.push_back(tmp);
     } else if(use_opd == 4) {
-        if(left_op->type != TYPE_INTEGER && left_op->type != TYPE_REAL) {
-            if(right_op->type != TYPE_INTEGER && right_op->type != TYPE_REAL) {
-                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
-                std::cerr << left_out << "' and '" << right_out << "')\n";
-                std::cerr << "    " << arr_token[m->line_number] << '\n';
-                space_arrow(m->col_number);
-                clear_tmp();
-                str_plus = 0;
-                return;
-            }
+        if((left_out != "integer" && left_out != "real") ||(right_out != "integer" && right_out != "real")) {
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
+            std::cerr << left_out << "' and '" << right_out << "')\n";
+            std::cerr << "    " << arr_token[m->line_number] << '\n';
+            space_arrow(m->col_number);
+            clear_tmp();
+            str_plus = 0;
+            return;
         }
         VariableInfo* tmp = new VariableInfo();
         tmp->type = TYPE_BOOLEAN;
@@ -550,17 +594,56 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
 }
 
 void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
-    first_op = 1;
-    if (m->operand != nullptr) {
-        m->operand->accept(*this);
-        first_type = tmp_type;
-        tmp_type = nullptr;
-    }
+
+    string opt = "";
     switch(m->op) {
-        case OP_MINUS: use_opd = 1; break;
-        case OP_NOT: use_opd = 3; break;
+        case OP_MINUS: use_opd = 1; opt += "-"; break;
+        case OP_NOT: use_opd = 3; opt += "not"; break;
         default: break;
     }
+
+    if (m->operand != nullptr) {
+        m->operand->accept(*this);
+    }
+
+    VariableInfo* left_op = nullptr;
+
+    left_op = type_list.back();
+    type_list.pop_back();
+
+    string left_out = type_return(left_op);
+    if(use_opd == 1) {
+        if(left_out != "integer" && left_out != "real") {
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operand to unary operation '" << opt << "' ('";
+            std::cerr << left_out << "')\n";
+            std::cerr << "    " << arr_token[m->line_number] << '\n';
+            space_arrow(m->col_number);
+            clear_tmp();
+            return;
+        }
+        if(left_op->type == TYPE_REAL) {
+            VariableInfo* tmp = new VariableInfo();
+            tmp->type = TYPE_REAL;
+            type_list.push_back(tmp);
+        } else {
+            VariableInfo* tmp = new VariableInfo();
+            tmp->type = TYPE_INTEGER;
+            type_list.push_back(tmp);
+        }
+    } else if(use_opd == 3) {
+        if(left_out != "boolean") {
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operand to unary operation '" << opt << "' ('";
+            std::cerr << left_out << "')\n";
+            std::cerr << "    " << arr_token[m->line_number] << '\n';
+            space_arrow(m->col_number);
+            clear_tmp();
+            return;
+        }
+        VariableInfo* tmp = new VariableInfo();
+        tmp->type = TYPE_BOOLEAN;
+        type_list.push_back(tmp);
+    }
+
     if (m->operand != nullptr) {
         m->operand->accept(*this);
     }

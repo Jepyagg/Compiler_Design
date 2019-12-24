@@ -251,7 +251,7 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << m->function_name << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            return ;
+            // return ;
         }
     }
 

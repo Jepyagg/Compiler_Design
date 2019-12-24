@@ -34,9 +34,6 @@ SymbolTableNode* func_table = nullptr;                  // if in func, point to 
 vector<SymbolTableNode*> for_lp_table;                  // record for_loop_var's symbol table
 vector<string> for_check_vec;                           // record for_loop_var's name
 vector<VariableInfo*> type_list;                        // record node's type info
-int function_param = 0;                                 // count function parameter 
-int func_param_check = 0;                               // contro function parameter check
-int func_param_correct = 0;                             // get correct function parameter number
 int for_check_p = 0;                                    // check loop variable
 string func_name = "", forloop_var = "";                // record function name and for loop variable
 
@@ -100,6 +97,33 @@ string type_return(VariableInfo* info) {
     return s;
 }
 
+string function_call_return(VariableInfo* info) {
+    string s = "";
+    switch(info->type) {
+        case TYPE_INTEGER: 
+            s += "integer"; break;
+        case TYPE_REAL:    
+            s += "real"; break;
+        case TYPE_STRING:  
+            s += "string"; break;
+        case TYPE_BOOLEAN: 
+            s += "boolean"; break;
+        case TYPE_VOID: 
+            s += "void"; break;
+        default:           
+            s += "something wrong"; break;
+    }
+    if(info->type_set == SET_ACCUMLATED) {
+        s += " ";
+        for(uint i = 0; i < info->array_range.size(); ++i){
+            s += "[";
+            s += to_string(info->array_range[i].end - info->array_range[i].start);
+            s += "]";
+        }
+    }
+    return s;
+}
+
 void space_arrow(int len) {
     error_find = 1;
     for(int i = 1; i < len + 4; ++i) {
@@ -147,11 +171,6 @@ void SemanticAnalyzer::visit(DeclarationNode *m) {
         for(uint i = 0; i < m->variables_node_list->size(); ++i) {
             (*(m->variables_node_list))[i]->accept(*this);
         }
-
-        // cnt correct param number
-        if(func_param_check == 1) {
-            func_param_correct += m->variables_node_list->size();
-        }
     }
 }
 
@@ -173,7 +192,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            return ;
+            // return ;
         }
     }
 
@@ -188,7 +207,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
                 for_check_p = 0;
-                return ;
+                // return ;
             }
         }
         if(check_redecl == 0) {
@@ -196,25 +215,19 @@ void SemanticAnalyzer::visit(VariableNode *m) {
         }
     }
 
-    // search current table to check whether array lower bound smaller than up bound or not
-    for(uint i = 0; i < sem_table->entries->size(); ++i) {
-        if((*(sem_table->entries))[i]->sym_type->type_set == SET_ACCUMLATED) {
-            for(uint j = 0; j < (*(sem_table->entries))[i]->sym_type->array_range.size(); ++j) {
-                uint arr_start = (*(sem_table->entries))[i]->sym_type->array_range[j].start;
-                uint arr_end = (*(sem_table->entries))[i]->sym_type->array_range[j].end;
-                if(arr_start > arr_end) {
-                    std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": '" << (*(sem_table->entries))[i]->sym_name;
-                    std::cerr << "' declared as an array with a lower bound greater or equal to upper bound\n";
-                    std::cerr << "    " << arr_token[m->line_number] << '\n';
-                    space_arrow(m->col_number);
-                    return ;
-                }
+    // check whether array lower bound smaller than up bound or not
+    if(m->type->type_set == SET_ACCUMLATED) {
+        for(uint j = 0; j < m->type->array_range.size(); ++j) {
+            uint arr_start = m->type->array_range[j].start;
+            uint arr_end = m->type->array_range[j].end;
+            if(arr_start > arr_end) {
+                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": '" << name_len_check;
+                std::cerr << "' declared as an array with a lower bound greater or equal to upper bound\n";
+                std::cerr << "    " << arr_token[m->line_number] << '\n';
+                space_arrow(m->col_number);
+                return ;
             }
         }
-    }
-
-    if(func_param_check == 1) { // cnt successful param
-        function_param++;
     }
 }
 
@@ -246,19 +259,9 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
     func_table = m->symbol_table_node; // point to function(first compound) table
 
     if (m->parameters != nullptr) {
-        func_param_check = 1; // open
         for(uint i = 0; i < m->parameters->size(); ++i) {
             (*(m->parameters))[i]->node->accept(*this);
         }
-        func_param_check = 0; // close
-
-        // check no param have redeclared
-        if(function_param != func_param_correct) {
-            func_param_correct = 0;
-            function_param = 0; // clear
-            return ;
-        }
-        function_param = 0; // clear
     }
 
     func_name = m->function_name; // record function name, to search the program table
@@ -277,7 +280,6 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
     }
 
     func_name = ""; // clear tmp variable
-    func_param_correct = 0; // clear tmp variable
 }
 
 void SemanticAnalyzer::visit(CompoundStatementNode *m) {
@@ -1041,7 +1043,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
     for(uint i = 0; i < param_cnt; ++i) {
         VariableInfo* tmp = func_param.top();
         func_param.pop();
-        string call_param = type_return(tmp), acc_param = type_return(param_info[i]);
+        string call_param = type_return(tmp), acc_param = function_call_return(param_info[i]);
         if(call_param != acc_param) {
             std::cerr << "<Error> Found in line " << tmp->var_line << ", column " << tmp->var_col << ": incompatible types passing '" << call_param;
             std::cerr << "' to parameter of type '" << acc_param << "'\n";

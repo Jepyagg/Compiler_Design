@@ -34,7 +34,7 @@ SymbolTableNode* func_table = nullptr;
 vector<SymbolTableNode*> for_lp_table;
 vector<string> for_check_vec;
 int for_check_p = 0, use_opd = 0;
-int arr_line = 0, arr_col = 0, arr_ref_check = 0;
+int arr_ref_check = 0;
 VariableInfo* first_type = nullptr;
 VariableInfo* second_type = nullptr;
 VariableInfo* tmp_type = nullptr;
@@ -343,6 +343,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
 }
 
 void SemanticAnalyzer::visit(PrintNode *m) {
+    // cout << "    in print test \n";
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
@@ -552,6 +553,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         for(int i = 0; i < type_list.size() - opr_cnt; ++i) {
             type_list.pop_back();
         }
+        use_opd = 0;
         return;
     }
     VariableInfo* left_op = nullptr;
@@ -573,7 +575,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
                 std::cerr << left_out << "' and '" << right_out << "')\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
-                clear_tmp();
+                use_opd = 0;
                 str_plus = 0;
                 return;
             }
@@ -596,8 +598,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             VariableInfo* tmp = new VariableInfo();
             tmp->type = TYPE_INTEGER;
             tmp->var_name = opt;
-        tmp->var_line = m->line_number;
-        tmp->var_col = m ->col_number;
+            tmp->var_line = m->line_number;
+            tmp->var_col = m ->col_number;
             type_list.push_back(tmp);
         }
     } else if(use_opd == 2) {
@@ -606,7 +608,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            clear_tmp();
+            use_opd = 0;
             str_plus = 0;
             return;
         }
@@ -622,7 +624,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            clear_tmp();
+            use_opd = 0;
             str_plus = 0;
             return;
         }
@@ -638,7 +640,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            clear_tmp();
+            use_opd = 0;
             str_plus = 0;
             return;
         }
@@ -655,6 +657,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
 
 void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
 
+    // cout << "    in unary \n";
     string opt = "";
     switch(m->op) {
         case OP_MINUS: use_opd = 1; opt += "-"; break;
@@ -668,6 +671,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
     }
     use_opd = own_opt;
     if((type_list.size() - opr_cnt) < 1) {
+        use_opd = 0;
         return;
     }
 
@@ -683,7 +687,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
             std::cerr << left_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            clear_tmp();
+            use_opd = 0;
             return;
         }
         if(left_op->type == TYPE_REAL) {
@@ -701,7 +705,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
             std::cerr << left_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            clear_tmp();
+            use_opd = 0;
             return;
         }
         VariableInfo* tmp = new VariableInfo();
@@ -709,6 +713,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
         type_list.push_back(tmp);
     }
     use_opd = 0;
+    // cout << use_opd << "    asdf\n";
 }
 
 void SemanticAnalyzer::visit(IfNode *m) {
@@ -860,6 +865,7 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
 
 void SemanticAnalyzer::visit(FunctionCallNode *m) {
 
+    // cout << "    in func call test \n";
     // error detect
     int error_p = 0;
     vector<VariableInfo*> param_info;
@@ -915,8 +921,12 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
             return ; // function call param type wrong
         }
     }
-
-    if(use_opd != 0) {
-        type_list.push_back(second_type);
-    }
+    // cout << use_opd << "     test \n";
+    second_type->var_name = m->function_name;
+    second_type->var_line = m->line_number;
+    second_type->var_col = m->col_number;
+    type_list.push_back(second_type);
+    // if(use_opd != 0) {
+    //     type_list.push_back(second_type);
+    // }
 }

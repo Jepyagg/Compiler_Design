@@ -206,10 +206,13 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
 
 
 void TableConstructor::visit(ProgramNode *m) {
+
+    // create program table, and push to list
     vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
     SymbolTableNode* symbol_table = new SymbolTableNode(entries);
     symbol_table_list.push_back(symbol_table);
 
+    // create entry
     VariableInfo* tmp = new VariableInfo(); 
     vector<VariableInfo*> tmp2;
     tmp->type_set = UNKNOWN_SET;
@@ -229,6 +232,7 @@ void TableConstructor::visit(ProgramNode *m) {
             (*(m->function_node_list))[i]->accept(*this);
         }
     }
+
     current_table = symbol_table;
     if(m->compound_statement_node != nullptr) {
         m->compound_statement_node->accept(*this);
@@ -247,17 +251,23 @@ void TableConstructor::visit(DeclarationNode *m) {
 }
 
 void TableConstructor::visit(VariableNode *m) {
+    
+    //check name length, bigger than 32 will ignore
     vector<VariableInfo*> tmp2;
-    string name_len_check = m->variable_name; //check name length, bigger than 32 will ignore
+    string name_len_check = m->variable_name;
     if(name_len_check.length() > 32) {
         name_len_check = name_len_check.assign(m->variable_name, 0, 32);
     }
     m->type->var_name = name_len_check;
+
+    // create entry
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(name_len_check, KIND_VAR, level_cnt, m->type, tmp2);
     if(m->constant_value_node != nullptr) {
         symbol_entry->sym_attribute.push_back(m->type);
         symbol_entry->sym_kind = KIND_CONST;
     }
+
+    // check whether variable redeclared or not
     int check_redeclar = 0; // 0 : no redecl, 1 : redecl
     for(uint i = 0; i < current_table->entries->size(); ++i) {
         string tmp = (*current_table->entries)[i]->sym_name;
@@ -265,6 +275,8 @@ void TableConstructor::visit(VariableNode *m) {
             check_redeclar = 1;
         }
     }
+
+    // check whether variable same as loop var or not
     if(for_check == 1) {
         for(uint i = 0; i < for_name_check.size(); ++i) {
             string tmp = for_name_check[i];
@@ -282,16 +294,17 @@ void TableConstructor::visit(VariableNode *m) {
     }
 }
 
-void TableConstructor::visit(ConstantValueNode *m) {
-    // (*(*symbol_table_list)[table_cnt]->entries)[(*symbol_table_list)[table_cnt]->entries->size() - 1]->sym_attribute.push_back(m->constant_value);
-}
+void TableConstructor::visit(ConstantValueNode *m) {}
 
 void TableConstructor::visit(FunctionNode *m) {
-    string name_len_check = m->function_name; //check name length, can't bigger than 32
+
+     //check name length, can't bigger than 32
+    string name_len_check = m->function_name;
     if(name_len_check.length() > 32) {
         name_len_check = name_len_check.assign(m->function_name, 0, 32);
     }
 
+    //check function entry to push to program table
     m->return_type->var_name = name_len_check;
     SymbolEntryNode* symbol_entry = new SymbolEntryNode(
                 name_len_check, 
@@ -300,6 +313,7 @@ void TableConstructor::visit(FunctionNode *m) {
                 m->return_type,
                 m->prototype);
 
+    // check whether function is redeclared or not
     int check_redeclar = 0; // 0 : no redecl, 1 : redecl 
     for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
         string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
@@ -311,13 +325,13 @@ void TableConstructor::visit(FunctionNode *m) {
         symbol_table_list[0]->entries->push_back(symbol_entry);
     }
 
+    // check whether parameter is redeclared or not
     if (m->parameters != nullptr) {
 
         // build table to store param
         vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
         SymbolTableNode* symbol_table = new SymbolTableNode(entries);
         m->symbol_table_node = symbol_table; //error detect use
-        // symbol_table_list.push_back(symbol_table);
         current_table = symbol_table; // point to table
         level_cnt++; // level add
 
@@ -329,19 +343,18 @@ void TableConstructor::visit(FunctionNode *m) {
         }
         func_param = 1; // check func have param
     }
+
     if (m->body != nullptr) {
         m->body->accept(*this);
     }
     m->symbol_table_node = current_table;
-    // dumpSymbol(m->symbol_table_node);
-    // level_cnt--;
 }
 
 void TableConstructor::visit(CompoundStatementNode *m) {
 
+    // create compound table, and push to list
     vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
     SymbolTableNode* symbol_table = new SymbolTableNode(entries);
-    // symbol_table_list.push_back(symbol_table);
     
     if(func_param == 0) { // 表示沒參數，所以改用 compound 建立的table
         level_cnt++;
@@ -351,7 +364,6 @@ void TableConstructor::visit(CompoundStatementNode *m) {
     m->symbol_table_node = current_table;
     symbol_table_list.push_back(m->symbol_table_node);
     
-    // cout << level_cnt << '\n';
     if (m->declaration_node_list != nullptr) {
         for(uint i = 0; i < m->declaration_node_list->size(); ++i) {
             (*(m->declaration_node_list))[i]->accept(*this);
@@ -360,15 +372,12 @@ void TableConstructor::visit(CompoundStatementNode *m) {
 
     func_param = 0;
 
-    // if(func_param == 1) {
-    //     level_cnt++;
-    // }
     if (m->statement_node_list != nullptr) {
         for(uint i = 0; i < m->statement_node_list->size(); ++i) {
             (*(m->statement_node_list))[i]->accept(*this);
         }
     }
-    // cout << level_cnt << '\n'
+
     dumpSymbol(m->symbol_table_node);
     current_table = m->symbol_table_node;
     level_cnt--;
@@ -444,7 +453,7 @@ void TableConstructor::visit(WhileNode *m) {
     }
 
     if (m->body != nullptr) {
-        for(uint i = 0; i< m->body->size(); ++i) {
+        for(uint i = 0; i < m->body->size(); ++i) {
             (*(m->body))[i]->accept(*this);
         }
     }
@@ -452,6 +461,7 @@ void TableConstructor::visit(WhileNode *m) {
 
 void TableConstructor::visit(ForNode *m) {
 
+    // create loop var table, and push to list
     vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
     SymbolTableNode* symbol_table = new SymbolTableNode(entries);
     symbol_table_list.push_back(symbol_table);
@@ -498,7 +508,7 @@ void TableConstructor::visit(ReturnNode *m) {
 
 void TableConstructor::visit(FunctionCallNode *m) {
     if (m->arguments != nullptr) {
-        for(uint i=0; i< m->arguments->size(); i++) {
+        for(uint i = 0; i < m->arguments->size(); ++i) {
             (*(m->arguments))[i]->accept(*this);
         }
     }

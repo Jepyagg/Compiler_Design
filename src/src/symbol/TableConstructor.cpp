@@ -291,6 +291,9 @@ void TableConstructor::visit(VariableNode *m) {
 
     if(check_redeclar == 0) {
         current_table->entries->push_back(symbol_entry);
+    } else {
+        delete symbol_entry;
+        symbol_entry = nullptr;
     }
 }
 
@@ -318,6 +321,8 @@ void TableConstructor::visit(FunctionNode *m) {
     for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
         string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
         if(name_len_check == tmp) {
+            delete symbol_entry;
+            symbol_entry = nullptr;
             check_redeclar = 1;
         }
     }
@@ -352,7 +357,9 @@ void TableConstructor::visit(FunctionNode *m) {
 
 void TableConstructor::visit(CompoundStatementNode *m) {
     
-    if(func_param == 0) { // 表示沒參數，所以改用 compound 建立的table
+    // 表示沒參數，所以改用 compound 建立的table
+    if(func_param == 0) {
+        
         // create compound table, and push to list
         vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
         SymbolTableNode* symbol_table = new SymbolTableNode(entries);

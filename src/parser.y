@@ -51,6 +51,8 @@ extern int32_t OptTable;
 /* Declared by lex */
 extern FILE *yyin;
 extern char *yytext;
+extern int arr_cnt;
+extern char* arr_token[512];
 
 extern "C" int yylex(void);
 extern "C" int yyparse();
@@ -586,6 +588,11 @@ int main(int argc, const char *argv[]) {
     delete AST;
     fclose(fp);
     yylex_destroy();
+
+    // free arr_token
+    for(int i = 1; i < arr_cnt; ++i) {
+        free(arr_token[i]);
+    }
 
     if(error_find == 0) {
         printf("\n"

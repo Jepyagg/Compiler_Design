@@ -38,6 +38,13 @@ int for_check_p = 0;                                    // check loop variable
 string func_name = "", forloop_var = "";                // record function name and for loop variable
 
 
+void delete_info(VariableInfo* target) {
+    if(target != nullptr) {
+        delete target;
+        target = nullptr;
+    } 
+}
+
 VariableInfo* search_table(VariableInfo* target) {
 
     VariableInfo* find_type = nullptr;
@@ -164,6 +171,13 @@ void SemanticAnalyzer::visit(ProgramNode *m) {
         std::cerr << "    " << arr_token[m->end_line_number] << '\n';
         space_arrow(m->end_col_number);
     }
+
+    // check type_list, and free all
+    for(uint i = 0; i < type_list.size(); ++i) {
+        VariableInfo* tmp = type_list.back();
+        type_list.pop_back();
+        delete_info(tmp);
+    }
 }
 
 void SemanticAnalyzer::visit(DeclarationNode *m) {
@@ -234,9 +248,17 @@ void SemanticAnalyzer::visit(VariableNode *m) {
 void SemanticAnalyzer::visit(ConstantValueNode *m) {
 
     // return constant information
-    m->constant_value->var_line = m->line_number;
-    m->constant_value->var_col = m->col_number;
-    type_list.push_back(m->constant_value);
+    VariableInfo* const_info = new VariableInfo();
+    const_info->type_set = m->constant_value->type_set;
+    const_info->type = m->constant_value->type;
+    const_info->array_range = m->constant_value->array_range;
+    const_info->int_literal = m->constant_value->int_literal;
+    const_info->real_literal = m->constant_value->real_literal;
+    const_info->string_literal = m->constant_value->string_literal;
+    const_info->boolean_literal = m->constant_value->boolean_literal;
+    const_info->var_line = m->line_number;
+    const_info->var_col = m->col_number;
+    type_list.push_back(const_info);
 }
 
 void SemanticAnalyzer::visit(FunctionNode *m) {
@@ -321,7 +343,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         std::cerr << left_type->var_name << "' which is a constant\n";
         std::cerr << "    " << arr_token[left_type->var_line] << '\n';
         space_arrow(left_type->var_col);
-        left_type = nullptr;
+        delete_info(left_type); // free memory
         return ;
     }
 
@@ -330,7 +352,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         std::cerr << "<Error> Found in line " << left_type->var_line << ", column " << left_type->var_col << ": array assignment is not allowed\n";
         std::cerr << "    " << arr_token[left_type->var_line] << '\n';
         space_arrow(left_type->var_col);
-        left_type = nullptr;
+        delete_info(left_type); // free memory
         return ;
     }
 
@@ -342,7 +364,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
                 std::cerr << ": the value of loop variable cannot be modified inside the loop\n";
                 std::cerr << "    " << arr_token[left_type->var_line] << '\n';
                 space_arrow(left_type->var_col);
-                left_type = nullptr;
+                delete_info(left_type); // free memory
                 return ;
             }
         }
@@ -354,6 +376,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
 
     // check no error
     if((type_list.size() - cnt) < 1) {
+        delete_info(left_type); // free memory
         return ;
     }
 
@@ -365,8 +388,9 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": array assignment is not allowed\n";
         std::cerr << "    " << arr_token[right_type->var_line] << '\n';
         space_arrow(right_type->var_col);
-        right_type = nullptr;
-        return;
+        delete_info(left_type); // free memory
+        delete_info(right_type); // free memory
+        return ;
     }  
 
     // check left child type same as right child type
@@ -383,13 +407,15 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
             std::cerr << first_ans << "' from incompatible type '" << second_ans << "'\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            left_type = nullptr;
-            right_type = nullptr;
+            delete_info(left_type); // free memory
+            delete_info(right_type); // free memory
             return ; // undeclare not need to check arguements
         }
     }
-    left_type = nullptr;
-    right_type = nullptr;
+
+    // free memory
+    delete_info(left_type);
+    delete_info(right_type);
 }
 
 void SemanticAnalyzer::visit(PrintNode *m) {
@@ -416,12 +442,12 @@ void SemanticAnalyzer::visit(PrintNode *m) {
         std::cerr << ": variable reference of print statement must be scalar type\n";
         std::cerr << "    " << arr_token[right_type->var_line] << '\n';
         space_arrow(right_type->var_col);
-        right_type = nullptr;
+        delete_info(right_type); // free memory
         return ;
     }
 
-    // clear pointer
-    right_type = nullptr;
+    // free memory
+    delete_info(right_type);
 }
 
 void SemanticAnalyzer::visit(ReadNode *m) {
@@ -448,7 +474,7 @@ void SemanticAnalyzer::visit(ReadNode *m) {
         std::cerr << ": variable reference of read statement cannot be a constant variable reference\n";
         std::cerr << "    " << arr_token[right_type->var_line] << '\n';
         space_arrow(right_type->var_col);
-        right_type = nullptr;
+        delete_info(right_type); // free memory
         return ;
     }
 
@@ -459,7 +485,7 @@ void SemanticAnalyzer::visit(ReadNode *m) {
             std::cerr << ": the value of loop variable cannot be modified inside the loop\n";
             std::cerr << "    " << arr_token[right_type->var_line] << '\n';
             space_arrow(right_type->var_col);
-            right_type = nullptr;
+            delete_info(right_type); // free memory
             return ;
         }
     }
@@ -470,12 +496,12 @@ void SemanticAnalyzer::visit(ReadNode *m) {
         std::cerr << ": variable reference of read statement must be scalar type\n";
         std::cerr << "    " << arr_token[right_type->var_line] << '\n';
         space_arrow(right_type->var_col);
-        right_type = nullptr;
+        delete_info(right_type); // free memory
         return ;
     }
 
-    // clear pointer
-    right_type = nullptr;
+    // free memory
+    delete_info(right_type);
 }
 
 void SemanticAnalyzer::visit(VariableReferenceNode *m) {
@@ -564,6 +590,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": use of undeclared identifier '" << m->variable_name << "'\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
+        delete_info(tmp_arr); // free memory
         return ; // undeclare not need to check arguements
     }
 
@@ -577,11 +604,13 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
                 std::cerr << "<Error> Found in line " << tmp_type->var_line << ", column " << tmp_type->var_col << ": index of array reference must be an integer\n";
                 std::cerr << "    " << arr_token[tmp_type->var_line] << '\n';
                 space_arrow(tmp_type->var_col);
-                tmp_type = nullptr;
+                delete_info(tmp_type); // free memory
+                delete_info(tmp_arr); // free memory
                 return ;
             }
             tmp_arr->array_range.push_back({1, 1});
             dimension_cnt--;
+            delete_info(tmp_type); // free memory
         }
     }
 
@@ -590,6 +619,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": there is an over array subscript\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
+        delete_info(tmp_arr); // free memory
         return ;
     }
     type_list.push_back(tmp_arr);
@@ -627,7 +657,9 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
     // check left && right child no error
     if((type_list.size() - opr_cnt) < 2) {
         for(int i = 0; i < type_list.size() - opr_cnt; ++i) {
+            VariableInfo* delete_tmp = type_list.back();
             type_list.pop_back();
+            delete_info(delete_tmp); // free memory
         }
         return ;
     }
@@ -652,6 +684,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
                 std::cerr << left_out << "' and '" << right_out << "')\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
+                delete_info(left_op); // free memory
+                delete_info(right_op); // free memory
                 return ;
             }
         }
@@ -683,6 +717,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
+            delete_info(left_op); // free memory
+            delete_info(right_op); // free memory
             return ;
         }
         VariableInfo* tmp = new VariableInfo();
@@ -697,6 +733,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
+            delete_info(left_op); // free memory
+            delete_info(right_op); // free memory
             return ;
         }
         VariableInfo* tmp = new VariableInfo();
@@ -711,6 +749,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
             std::cerr << left_out << "' and '" << right_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
+            delete_info(left_op); // free memory
+            delete_info(right_op); // free memory
             return ;
         }
         VariableInfo* tmp = new VariableInfo();
@@ -721,9 +761,9 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
         type_list.push_back(tmp);
     }
 
-    // clear pointer
-    left_op = nullptr;
-    right_op = nullptr;
+    // free memory
+    delete_info(left_op);
+    delete_info(right_op);
 }
 
 void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
@@ -757,6 +797,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
             std::cerr << left_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
+            delete_info(left_op); // free memory
             return;
         }
         if(left_op->type == TYPE_REAL) {
@@ -780,6 +821,7 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
             std::cerr << left_out << "')\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
+            delete_info(left_op); // free memory
             return;
         }
         VariableInfo* tmp = new VariableInfo();
@@ -790,8 +832,8 @@ void SemanticAnalyzer::visit(UnaryOperatorNode *m) {
         type_list.push_back(tmp);
     }
     
-    // clear pointer
-    left_op = nullptr;
+    // free memory
+    delete_info(left_op);
 }
 
 void SemanticAnalyzer::visit(IfNode *m) {
@@ -818,7 +860,7 @@ void SemanticAnalyzer::visit(IfNode *m) {
         std::cerr << ": the expression of condition must be boolean type\n";
         std::cerr << "    " << arr_token[if_condition_type->var_line] << '\n';
         space_arrow(if_condition_type->var_col);
-        // if_condition_type = nullptr;
+        // delete_info(if_condition_type); // free memory
         // return ;
     }
 
@@ -836,8 +878,8 @@ void SemanticAnalyzer::visit(IfNode *m) {
         }
     }
 
-    // clear pointer
-    if_condition_type = nullptr;
+    // free memory
+    delete_info(if_condition_type);
 }
 
 void SemanticAnalyzer::visit(WhileNode *m) {
@@ -864,7 +906,7 @@ void SemanticAnalyzer::visit(WhileNode *m) {
         std::cerr << ": the expression of condition must be boolean type\n";
         std::cerr << "    " << arr_token[while_condition_type->var_line] << '\n';
         space_arrow(while_condition_type->var_col);
-        // while_condition_type = nullptr;
+        // delete_info(while_condition_type); // free memory
         // return;
     }
 
@@ -875,8 +917,8 @@ void SemanticAnalyzer::visit(WhileNode *m) {
         }
     }
 
-    // clear pointer
-    while_condition_type = nullptr;
+    // free memory
+    delete_info(while_condition_type);
 }
 
 void SemanticAnalyzer::visit(ForNode *m) {
@@ -923,6 +965,8 @@ void SemanticAnalyzer::visit(ForNode *m) {
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
         for_check_vec.pop_back();
+        delete_info(first_value); // free memory
+        delete_info(second_value); // free memory
         return ;
     }
 
@@ -938,8 +982,8 @@ void SemanticAnalyzer::visit(ForNode *m) {
     // leave current forloop need to pop some information and clear pointer
     for_lp_table.pop_back();
     for_check_vec.pop_back();
-    first_value = nullptr;
-    second_value = nullptr;
+    delete_info(first_value); // free memory
+    delete_info(second_value); // free memory
     for_check_p = 0;
 }
 
@@ -975,7 +1019,7 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program/procedure should not return a value\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
-        return_type = nullptr;
+        delete_info(return_type); // free memory
         return ;
     }
 
@@ -986,25 +1030,31 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
         std::cerr << func_type << "'\n";
         std::cerr << "    " << arr_token[return_type->var_line] << '\n';
         space_arrow(return_type->var_col);
-        return_type = nullptr;
+        delete_info(return_type); // free memory
         return ;
     }
 
-    // clear pointer
-    return_type = nullptr;
+     // free memory
+    delete_info(return_type);
 }
 
 void SemanticAnalyzer::visit(FunctionCallNode *m) {
 
     // check func whether have declared or not
     int error_p = 0;
-    VariableInfo* funccall_type = nullptr;
+    VariableInfo* funccall_type = new VariableInfo();
     vector<VariableInfo*> param_info;
     for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
         string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
         if((*symbol_table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
             if(m->function_name == tmp && (*symbol_table_list[0]->entries)[i]->decl_check == 1) { // have declare
-                funccall_type = (*symbol_table_list[0]->entries)[i]->sym_type;
+                funccall_type->type_set = (*symbol_table_list[0]->entries)[i]->sym_type->type_set;
+                funccall_type->type = (*symbol_table_list[0]->entries)[i]->sym_type->type;
+                funccall_type->array_range = (*symbol_table_list[0]->entries)[i]->sym_type->array_range;
+                funccall_type->int_literal = (*symbol_table_list[0]->entries)[i]->sym_type->int_literal;
+                funccall_type->real_literal = (*symbol_table_list[0]->entries)[i]->sym_type->real_literal;
+                funccall_type->string_literal = (*symbol_table_list[0]->entries)[i]->sym_type->string_literal;
+                funccall_type->boolean_literal = (*symbol_table_list[0]->entries)[i]->sym_type->boolean_literal;
                 param_info = (*symbol_table_list[0]->entries)[i]->sym_attribute;
                 error_p = 1;
                 break;
@@ -1015,7 +1065,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": used of undeclared function '" << m->function_name << "'\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
-        funccall_type = nullptr;
+        delete_info(funccall_type); // free memory
         return ; // undeclare not need to check arguements
     }
 
@@ -1031,7 +1081,14 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": too few/much arguments to function invocation\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
-        funccall_type = nullptr;
+
+        // free memory
+        for(uint i = 0; i < param_cnt; ++i) {
+            VariableInfo* tmp = type_list.back();
+            type_list.pop_back();
+            delete_info(tmp);
+        }
+        delete_info(funccall_type);
         return ; // function call param need more
     }
 
@@ -1051,9 +1108,10 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
             std::cerr << "' to parameter of type '" << acc_param << "'\n";
             std::cerr << "    " << arr_token[tmp->var_line] << '\n';
             space_arrow(tmp->var_col);
-            // funccall_type = nullptr;
+            // delete funccall_type; // free memory
             // return ; // function call param type wrong
         }
+        delete_info(tmp); // free memory
     }
 
     // return functioncall information

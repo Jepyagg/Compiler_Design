@@ -18,6 +18,8 @@
 #include "AST/return.hpp"
 #include "AST/function_call.hpp"
 #include "AST/ASTDumper.hpp"
+#include "AST/symbol_entry.hpp"
+#include "AST/symbol_table.hpp"
 #include "semantic/SemanticAnalyzer.hpp"
 #include "symbol/TableConstructor.hpp"
 #include "core/error.h"
@@ -88,6 +90,8 @@ int error_find = 0;
 %code requires { #include "AST/for.hpp" }
 %code requires { #include "AST/return.hpp" }
 %code requires { #include "AST/function_call.hpp" }
+%code requires { #include "AST/symbol_entry.hpp" }
+%code requires { #include "AST/symbol_table.hpp"}
 %code requires { #include "visitor/visitor.hpp" }
 
     /* Union Define */
@@ -230,10 +234,10 @@ FunctionDeclaration     : FunctionName L_PARENTHESIS FormalArgList R_PARENTHESIS
                             
                             // Disassemble FormalArgList (node w type list ptr list ptr)
                             if ($3 != nullptr) {
-                                for(uint i = 0; i < $3->size(); ++i){
+                                for(uint i = 0; i < $3->size(); ++i) { 
                                     // put node (Node)
                                     //parameters->push_back((*$3)[i]->node);
-                                    for(uint j=0; j<(*$3)[i]->counter; j++){
+                                    for(uint j = 0; j < (*$3)[i]->counter; ++j) {
                                         // put type (VariableInfo*)
                                         // duplicate (eliminate hierarchy problem)
                                         VariableInfo* dupTemp = new VariableInfo();
@@ -272,7 +276,6 @@ FormalArgs      : FormalArg {$$ = new vector<NodeWithTypeList*>(); $$->push_back
 
 FormalArg       : IdList COLON Type { // Declaration Node (but location is not KWvar)
                     $$ = new NodeWithTypeList(); $$->type = $3; $$->counter = 0;
-
                     NodeList* var_list = new NodeList();
                     for(uint i = 0; i < $1->size(); ++i) {
                         // Duplicate $3 (eliminate hierarchy problem)
@@ -309,7 +312,8 @@ ReturnType      : COLON ScalarType {$$ = $2;}
        Data Types and Declarations
                                    */
 
-Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {NodeList* var_list = new NodeList();
+Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {
+                    NodeList* var_list = new NodeList();
                     for(uint i = 0; i < $2->size(); ++i) {
                         if( $4->type_set == SET_CONSTANT_LITERAL ) {  // Literal Constant
                             // duplicate $4 (eliminate hierarchy problem)
@@ -335,7 +339,6 @@ Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {NodeList* var_list 
                             dupTemp2->boolean_literal = $4->boolean_literal;
 
                             VariableNode* variable_node = new VariableNode((*$2)[i].line_number, (*$2)[i].col_number, (*$2)[i].name, dupTemp2, constant_value_node);
-
                             var_list->push_back(variable_node);
                             
                         } else {  // Type
@@ -350,7 +353,6 @@ Declaration     : VAR IdList COLON TypeOrConstant SEMICOLON {NodeList* var_list 
                             dupTemp->boolean_literal = $4->boolean_literal;
 
                             VariableNode* variable_node = new VariableNode((*$2)[i].line_number, (*$2)[i].col_number, (*$2)[i].name, dupTemp, nullptr);
-
                             var_list->push_back(variable_node);
                         }
                     }
@@ -375,8 +377,7 @@ ScalarType      : INTEGER {$$ = new VariableInfo(); $$->type_set = SET_SCALAR; $
                 ;
 
 ArrType     : ArrDecl ScalarType { $$ = new VariableInfo(); $$->type_set = SET_ACCUMLATED; $$->type = $2->type; $$->array_range = $1->array_range;
-              delete $1;
-              delete $2;}
+              delete $1; delete $2;}
             ;
 
 ArrDecl     : ARRAY INT_LITERAL TO INT_LITERAL OF {$$ = new VariableInfo(); $$->type_set = SET_ACCUMLATED; $$->type = UNKNOWN_TYPE;
@@ -386,8 +387,7 @@ ArrDecl     : ARRAY INT_LITERAL TO INT_LITERAL OF {$$ = new VariableInfo(); $$->
 
 LiteralConstant     : INT_LITERAL{$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_INTEGER; $$->int_literal = $1;}
                     | REAL_LITERAL {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_REAL; $$->real_literal = $1;}
-                    | STRING_LITERAL {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_STRING;
-                      $$->string_literal = string($1); free($1);}
+                    | STRING_LITERAL {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_STRING; $$->string_literal = string($1); free($1);}
                     | TRUE {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_BOOLEAN; $$->boolean_literal = Boolean_TRUE;}
                     | FALSE {$$ = new VariableInfo(); $$->type_set = SET_CONSTANT_LITERAL; $$->type = TYPE_BOOLEAN; $$->boolean_literal = Boolean_FALSE;}
                     ;

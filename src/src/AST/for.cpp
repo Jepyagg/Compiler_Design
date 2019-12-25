@@ -1,4 +1,5 @@
 #include "AST/for.hpp"
+#include "AST/symbol_table.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -22,12 +23,15 @@ ForNode::ForNode(
         this->body = _body;
     }
 
-ForNode::~ForNode(){
+ForNode::~ForNode() {
     SAFE_DELETE(this->loop_variable_declaration)
     SAFE_DELETE(this->initial_statement)
     SAFE_DELETE(this->condition2)
     SAFE_DELETE(this->condition)
     NODELIST_PTR_DELETE(this->body)
+    if(this->symbol_table_node != nullptr) {
+        delete this->symbol_table_node;
+    }
 }
 
 void ForNode::print() {

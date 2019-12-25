@@ -274,7 +274,8 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
 
     // check function end name same as function name
     if(m->function_name != m->end_name) {
-        std::cerr << "<Error> Found in line " << m->end_line_number << ", column " << m->end_col_number << ": identifier at the end of function must be the same as identifier at the beginning of function\n";
+        std::cerr << "<Error> Found in line " << m->end_line_number << ", column " << m->end_col_number;
+        std::cerr << ": identifier at the end of function must be the same as identifier at the beginning of function\n";
         std::cerr << "    " << arr_token[m->end_line_number] << '\n';
         space_arrow(m->end_col_number);
     }
@@ -646,7 +647,8 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
                 str_plus = 1;
             }
             if(str_plus == 0) {
-                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": invalid operands to binary operation '" << opt << "' ('";
+                std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number;
+                std::cerr << ": invalid operands to binary operation '" << opt << "' ('";
                 std::cerr << left_out << "' and '" << right_out << "')\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
@@ -816,8 +818,8 @@ void SemanticAnalyzer::visit(IfNode *m) {
         std::cerr << ": the expression of condition must be boolean type\n";
         std::cerr << "    " << arr_token[if_condition_type->var_line] << '\n';
         space_arrow(if_condition_type->var_col);
-        if_condition_type = nullptr;
-        return ;
+        // if_condition_type = nullptr;
+        // return ;
     }
 
     // visit body
@@ -862,8 +864,8 @@ void SemanticAnalyzer::visit(WhileNode *m) {
         std::cerr << ": the expression of condition must be boolean type\n";
         std::cerr << "    " << arr_token[while_condition_type->var_line] << '\n';
         space_arrow(while_condition_type->var_col);
-        while_condition_type = nullptr;
-        return;
+        // while_condition_type = nullptr;
+        // return;
     }
 
     // visit body
@@ -1049,8 +1051,8 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
             std::cerr << "' to parameter of type '" << acc_param << "'\n";
             std::cerr << "    " << arr_token[tmp->var_line] << '\n';
             space_arrow(tmp->var_col);
-            funccall_type = nullptr;
-            return ; // function call param type wrong
+            // funccall_type = nullptr;
+            // return ; // function call param type wrong
         }
     }
 

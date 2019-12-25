@@ -351,12 +351,11 @@ void TableConstructor::visit(FunctionNode *m) {
 }
 
 void TableConstructor::visit(CompoundStatementNode *m) {
-
-    // create compound table, and push to list
-    vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
-    SymbolTableNode* symbol_table = new SymbolTableNode(entries);
     
     if(func_param == 0) { // 表示沒參數，所以改用 compound 建立的table
+        // create compound table, and push to list
+        vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
+        SymbolTableNode* symbol_table = new SymbolTableNode(entries);
         level_cnt++;
         current_table = symbol_table;
     }

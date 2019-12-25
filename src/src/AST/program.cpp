@@ -1,4 +1,6 @@
 #include "AST/program.hpp"
+#include "AST/symbol_entry.hpp"
+#include "AST/symbol_table.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -28,10 +30,14 @@ ProgramNode::ProgramNode(
         this->end_name = _end_name;
     }
 
-ProgramNode::~ProgramNode(){
+ProgramNode::~ProgramNode() {
     NODELIST_PTR_DELETE(this->declaration_node_list)
     NODELIST_PTR_DELETE(this->function_node_list)
     SAFE_DELETE(this->compound_statement_node)
+    if(this->symbol_table_node != nullptr) {
+        delete (*(this->symbol_table_node->entries))[0]->sym_type;
+        delete this->symbol_table_node;
+    }
 }
 
 void ProgramNode::print() {    

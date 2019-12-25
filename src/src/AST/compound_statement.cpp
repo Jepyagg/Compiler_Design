@@ -1,4 +1,5 @@
 #include "AST/compound_statement.hpp"
+#include "AST/symbol_table.hpp"
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
@@ -16,9 +17,12 @@ CompoundStatementNode::CompoundStatementNode(
         this->statement_node_list = _statement_node_list;
     }
 
-CompoundStatementNode::~CompoundStatementNode(){
+CompoundStatementNode::~CompoundStatementNode() {
     NODELIST_PTR_DELETE(this->declaration_node_list)
     NODELIST_PTR_DELETE(this->statement_node_list)
+    if(this->symbol_table_node != nullptr) {
+        delete this->symbol_table_node;
+    }
 }
 
 void CompoundStatementNode::print() {

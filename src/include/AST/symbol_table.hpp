@@ -7,5 +7,4 @@ class SymbolTableNode {
         vector<SymbolEntryNode*>* entries;
         SymbolTableNode(vector<SymbolEntryNode*>* _entries);
         ~SymbolTableNode();
-        // void accept(ASTVisitorBase &v) { v.visit(this); }
 };

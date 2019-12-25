@@ -11,17 +11,9 @@ class ForNode : public ASTNodeBase {
         Node condition2; // an expression node
         Node condition; // an expression node
         NodeList* body; // a list of statement nodes (zero or more)
+        SymbolTableNode* symbol_table_node; // save symbol table
 
-        SymbolTableNode* symbol_table_node;
-
-        ForNode(
-            int _line_number, 
-            int _col_number, 
-            Node _loop_variable_declaration, 
-            Node _initial_statement,
-            Node _condition2,
-            Node _condition, 
-            NodeList* _body);
+        ForNode(int _line_number, int _col_number, Node _loop_variable_declaration, Node _initial_statement, Node _condition2, Node _condition, NodeList* _body);
         ~ForNode();
         void accept(ASTVisitorBase &v) {v.visit(this); }
         void print();

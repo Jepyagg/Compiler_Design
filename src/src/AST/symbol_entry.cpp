@@ -11,5 +11,6 @@ SymbolEntryNode::SymbolEntryNode(string _name, enumKind _kind, int _level, Varia
         this->sym_type = _type;
         this->sym_attribute = _attribute;
 }
-SymbolEntryNode::~SymbolEntryNode(){
+SymbolEntryNode::~SymbolEntryNode() {
+
 }

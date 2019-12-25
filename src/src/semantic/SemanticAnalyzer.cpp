@@ -32,6 +32,7 @@ extern vector<SymbolTableNode*> symbol_table_list;      // symbol table list
 SymbolTableNode* sem_table = nullptr;                   // point to current node symbol table
 SymbolTableNode* func_table = nullptr;                  // if in func, point to func symbol table
 vector<SymbolTableNode*> for_lp_table;                  // record for_loop_var's symbol table
+vector<SymbolTableNode*> comp_table;                    // record compound's symbol table
 vector<string> for_check_vec;                           // record for_loop_var's name
 vector<VariableInfo*> type_list;                        // record node's type info
 int for_check_p = 0;                                    // check loop variable
@@ -206,7 +207,18 @@ void SemanticAnalyzer::visit(VariableNode *m) {
             std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            // return ;
+            return ;
+        }
+    }
+
+    // search program table to check whether same as function name or not
+    for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
+        string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
+        if(name_len_check == tmp && (*symbol_table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
+            std::cerr << "    " << arr_token[m->line_number] << '\n';
+            space_arrow(m->col_number);
+            return ;
         }
     }
 
@@ -220,8 +232,8 @@ void SemanticAnalyzer::visit(VariableNode *m) {
                 std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
                 space_arrow(m->col_number);
-                for_check_p = 0;
-                // return ;
+                for_check_p = 2;
+                return ;
             }
         }
         if(check_redecl == 0) {
@@ -309,6 +321,7 @@ void SemanticAnalyzer::visit(CompoundStatementNode *m) {
 
     sem_table = m->symbol_table_node; // current table is compound table
     
+    comp_table.push_back(m->symbol_table_node);
     if (m->declaration_node_list != nullptr) {
         for(uint i = 0; i < m->declaration_node_list->size(); ++i) {
             (*(m->declaration_node_list))[i]->accept(*this);
@@ -320,6 +333,7 @@ void SemanticAnalyzer::visit(CompoundStatementNode *m) {
             (*(m->statement_node_list))[i]->accept(*this);
         }
     }
+    comp_table.pop_back();
 }
 
 void SemanticAnalyzer::visit(AssignmentNode *m) {
@@ -357,7 +371,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
     }
 
     // if in for_lp, check variable is not assign
-    if(for_lp_table.size() != 0) {
+    if(for_lp_table.size() != 0 && for_check_p != 2) {
         for(uint i = 0; i < for_check_vec.size(); ++i) {
             if(left_type->var_name == for_check_vec[i]) {
                 std::cerr << "<Error> Found in line " << left_type->var_line << ", column " << left_type->var_col;
@@ -551,17 +565,39 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
     // third search for loop var
     if(for_lp_table.size() != 0) {
         for(uint i = 0; i < for_lp_table.size(); ++i) {
-            string tmp = (*for_lp_table[0]->entries)[0]->sym_name;
-            if(m->variable_name == tmp) { // have declare
-                tmp_arr->type_set = (*for_lp_table[0]->entries)[0]->sym_type->type_set;
-                tmp_arr->type = (*for_lp_table[0]->entries)[0]->sym_type->type;
-                tmp_arr->var_name = m->variable_name;
-                tmp_arr->var_line = m->line_number;
-                tmp_arr->var_col = m->col_number;
-                error_p = 1;
-                dimension_cnt = (*for_lp_table[0]->entries)[0]->sym_type->array_range.size();
-                tmp_arr->var_dim = dimension_cnt;
-                break;
+            for(uint j = 0; j < for_lp_table[i]->entries->size(); ++j) {
+                string tmp = (*for_lp_table[i]->entries)[0]->sym_name;
+                if(m->variable_name == tmp) { // have declare
+                    tmp_arr->type_set = (*for_lp_table[i]->entries)[0]->sym_type->type_set;
+                    tmp_arr->type = (*for_lp_table[i]->entries)[0]->sym_type->type;
+                    tmp_arr->var_name = m->variable_name;
+                    tmp_arr->var_line = m->line_number;
+                    tmp_arr->var_col = m->col_number;
+                    error_p = 1;
+                    dimension_cnt = (*for_lp_table[i]->entries)[0]->sym_type->array_range.size();
+                    tmp_arr->var_dim = dimension_cnt;
+                    break;
+                }
+            }
+        }
+    }
+
+    // fourth search for compound table
+    if(comp_table.size() != 0) {
+        for(uint i = 0; i < comp_table.size(); ++i) {
+            for(uint j = 0; j < comp_table[i]->entries->size(); ++j) {
+                string tmp = (*comp_table[i]->entries)[j]->sym_name;
+                if(m->variable_name == tmp) { // have declare
+                    tmp_arr->type_set = (*comp_table[i]->entries)[j]->sym_type->type_set;
+                    tmp_arr->type = (*comp_table[i]->entries)[j]->sym_type->type;
+                    tmp_arr->var_name = m->variable_name;
+                    tmp_arr->var_line = m->line_number;
+                    tmp_arr->var_col = m->col_number;
+                    error_p = 1;
+                    dimension_cnt = (*comp_table[i]->entries)[j]->sym_type->array_range.size();
+                    tmp_arr->var_dim = dimension_cnt;
+                    break;
+                }
             }
         }
     }
@@ -597,7 +633,14 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
     // check array reference
     if (m->expression_node_list != nullptr) {
         for(uint i = 0; i < m->expression_node_list->size(); ++i) {
+            int cnt = type_list.size();
             (*(m->expression_node_list))[i]->accept(*this);
+
+            // check no error
+            if((type_list.size() - cnt) < 1) {
+                return ;
+            }
+
             VariableInfo* tmp_type = type_list.back();
             type_list.pop_back();
             if(tmp_type->type != TYPE_INTEGER) {
@@ -923,16 +966,17 @@ void SemanticAnalyzer::visit(WhileNode *m) {
 
 void SemanticAnalyzer::visit(ForNode *m) {
 
-    sem_table = m->symbol_table_node; // current table is loop_var table
+    SymbolTableNode* tmp_table = sem_table; // record original table
+    sem_table = m->symbol_table_node; // current table point to loop_var table
     
     for_check_p = 1;
 
     // visit loop_var
     if (m->loop_variable_declaration != nullptr) {
         m->loop_variable_declaration->accept(*this);
-        if(for_check_p == 0) {
-            return ;
-        }
+        // if(for_check_p == 0) {
+        //     return ;
+        // }
     }
     if (m->initial_statement != nullptr) {
         m->initial_statement->accept(*this);
@@ -971,7 +1015,8 @@ void SemanticAnalyzer::visit(ForNode *m) {
     }
 
     for_lp_table.push_back(m->symbol_table_node); // push current loop_var table
-
+    sem_table = tmp_table; // point to original table
+    
     // visit body
     if (m->body != nullptr) {
         for(uint i = 0; i < m->body->size(); ++i) {

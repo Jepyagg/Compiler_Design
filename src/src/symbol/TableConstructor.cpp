@@ -276,6 +276,14 @@ void TableConstructor::visit(VariableNode *m) {
         }
     }
 
+    // check whether variable name same as function or not
+    for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
+        string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
+        if(name_len_check == tmp && (*symbol_table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
+            check_redeclar = 1;
+        }
+    }
+
     // check whether variable same as loop var or not
     if(for_check == 1) {
         for(uint i = 0; i < for_name_check.size(); ++i) {

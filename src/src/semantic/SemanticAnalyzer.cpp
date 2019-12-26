@@ -638,6 +638,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 
             // check no error
             if((type_list.size() - cnt) < 1) {
+                delete_info(tmp_arr); // free memory
                 return ;
             }
 

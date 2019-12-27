@@ -28,7 +28,7 @@ extern int OptTable;
 vector<SymbolTableNode*> symbol_table_list;
 vector<string> for_name_check;
 SymbolTableNode* current_table = nullptr;
-int table_cnt = 0, level_cnt = 0, func_param = 0, for_check = 0;
+int table_cnt = 0, level_cnt = 0, func_param = 0, for_check = 0, lp_var = 0;
 
 void dumpDemarcation(const char chr) {
     for (size_t i = 0; i < 110; ++i) {
@@ -276,14 +276,6 @@ void TableConstructor::visit(VariableNode *m) {
         }
     }
 
-    // check whether variable name same as function or not
-    for(uint i = 0; i < symbol_table_list[0]->entries->size(); ++i) {
-        string tmp = (*symbol_table_list[0]->entries)[i]->sym_name;
-        if(name_len_check == tmp && (*symbol_table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
-            check_redeclar = 1;
-        }
-    }
-
     // check whether variable same as loop var or not
     if(for_check == 1) {
         for(uint i = 0; i < for_name_check.size(); ++i) {
@@ -292,7 +284,7 @@ void TableConstructor::visit(VariableNode *m) {
                 check_redeclar = 1;
             }
         }
-        if(check_redeclar == 0) {
+        if(check_redeclar == 0 && lp_var == 1) {
             for_name_check.push_back(symbol_entry->sym_name);
         }
     }
@@ -484,6 +476,7 @@ void TableConstructor::visit(ForNode *m) {
 
     level_cnt++;
     for_check = 1;
+    lp_var = 1;
     int loop_var_size = 0;
     if (m->loop_variable_declaration != nullptr) {
         m->loop_variable_declaration->accept(*this);
@@ -492,7 +485,7 @@ void TableConstructor::visit(ForNode *m) {
             loop_var_size = 1;
         }
     }
-    
+    lp_var = 0;
     if (m->initial_statement != nullptr) {
         m->initial_statement->accept(*this);
     }

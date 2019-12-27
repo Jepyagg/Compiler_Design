@@ -128,6 +128,17 @@ void space_arrow(int len) {
 
 void SemanticAnalyzer::visit(ProgramNode *m) {
 
+    // check name length, bigger than 32 will ignore
+    string name_len_check = m->program_name;
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->program_name, 0, 32);
+    }
+
+    string name_len_check2 = m->end_name;
+    if(name_len_check2.length() > 32) {
+        name_len_check2 = name_len_check2.assign(m->end_name, 0, 32);
+    }
+
     // point to current node table and push table
     sem_table = m->symbol_table_node;
     table_list.push_back(m->symbol_table_node);
@@ -152,15 +163,16 @@ void SemanticAnalyzer::visit(ProgramNode *m) {
         m->compound_statement_node->accept(*this);
     }
 
+    // check Program Node related error
     // check program name same as file name
-    if(m->program_name != file_name) {
+    if(name_len_check != file_name) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program name must be the same as filename\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
     }
 
     // check end name same as program name
-    if(m->program_name != m->end_name) {
+    if(name_len_check != name_len_check2) {
         std::cerr << "<Error> Found in line " << m->end_line_number << ", column " << m->end_col_number;
         std::cerr << ": identifier at the end of program must be the same as identifier at the beginning of program\n";
         std::cerr << "    " << arr_token[m->end_line_number] << '\n';
@@ -207,17 +219,6 @@ void SemanticAnalyzer::visit(VariableNode *m) {
             return ;
         }
     }
-
-    // search program table to check whether same as function name or not
-    // for(uint i = 0; i < table_list[0]->entries->size(); ++i) {
-    //     string tmp = (*table_list[0]->entries)[i]->sym_name;
-    //     if(name_len_check == tmp && (*table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
-    //         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
-    //         std::cerr << "    " << arr_token[m->line_number] << '\n';
-    //         space_arrow(m->col_number);
-    //         return ;
-    //     }
-    // }
 
     // for loop redeclare
     int check_redecl = 0;
@@ -272,17 +273,26 @@ void SemanticAnalyzer::visit(ConstantValueNode *m) {
 
 void SemanticAnalyzer::visit(FunctionNode *m) {
 
+    // check name length, bigger than 32 will ignore
+    string name_len_check = m->function_name;
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->function_name, 0, 32);
+    }
+    string name_len_check2 = m->end_name;
+    if(name_len_check2.length() > 32) {
+        name_len_check2 = name_len_check2.assign(m->end_name, 0, 32);
+    }
+
     // search program table to check whether have function redeclared or not
     for(uint i = 0; i < sem_table->entries->size(); ++i) {
         string tmp = (*sem_table->entries)[i]->sym_name;
-        if(m->function_name == tmp && (*sem_table->entries)[i]->decl_check == 0) {
+        if(name_len_check == tmp && (*sem_table->entries)[i]->decl_check == 0) {
             (*sem_table->entries)[i]->decl_check = 1;
             break;
-        } else if(m->function_name == tmp && (*sem_table->entries)[i]->decl_check == 1) {
-            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << m->function_name << "' is redeclared\n";
+        } else if(name_len_check == tmp && (*sem_table->entries)[i]->decl_check == 1) {
+            std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": symbol '" << name_len_check << "' is redeclared\n";
             std::cerr << "    " << arr_token[m->line_number] << '\n';
             space_arrow(m->col_number);
-            // return ;
         }
     }
 
@@ -303,8 +313,10 @@ void SemanticAnalyzer::visit(FunctionNode *m) {
 
     func_table = nullptr; // leave function, so no need to point to function(first compound) table
 
+    // check Function Node related error
     // check function end name same as function name
-    if(m->function_name != m->end_name) {
+
+    if(name_len_check != name_len_check2) {
         std::cerr << "<Error> Found in line " << m->end_line_number << ", column " << m->end_col_number;
         std::cerr << ": identifier at the end of function must be the same as identifier at the beginning of function\n";
         std::cerr << "    " << arr_token[m->end_line_number] << '\n';
@@ -341,7 +353,10 @@ void SemanticAnalyzer::visit(CompoundStatementNode *m) {
 
 void SemanticAnalyzer::visit(AssignmentNode *m) {
 
+    // record current type_list size, whether variable and expression have error or not
     int cnt = type_list.size(), variable_error = 0, expression_error = 0;
+
+    // visit variable reference node
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
     }
@@ -359,6 +374,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         type_list.pop_back();
     }
 
+    // visit expression node
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
@@ -373,6 +389,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         type_list.pop_back();
     }
 
+    // check Assignment Node related error
     if(variable_error == 0) {
 
         // check variable is not constant
@@ -417,6 +434,8 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
             }
         }
     } else {
+
+        // left node has error, if right child not error, need to free memory
         if(expression_error == 0) {
             delete_info(right_type); // free memory
         }
@@ -448,7 +467,7 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
             if(left_type->type != right_type->type && type_con == 0) {
                 string first_ans = type_return(left_type), second_ans = type_return(right_type);
                 std::cerr << "<Error> Found in line " << right_type->var_line << ", column " << right_type->var_col << ": assigning to '";
-                std::cerr << first_ans << "' from incompatible type '" << second_ans << "'\n";
+                std::cerr << left_type->var_name << "' from incompatible type '" << second_ans << "'\n";
                 std::cerr << "    " << arr_token[right_type->var_line] << '\n';
                 space_arrow(right_type->var_col);
                 if(variable_error == 0) {
@@ -558,6 +577,12 @@ void SemanticAnalyzer::visit(ReadNode *m) {
 
 void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 
+    // check name length, bigger than 32 will ignore
+    string name_len_check = m->variable_name;
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->variable_name, 0, 32);
+    }
+
     VariableInfo* tmp_arr = new VariableInfo();
     int error_p = 0, dimension_cnt = 0;
 
@@ -567,10 +592,10 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
         for(uint j = 0; j < table_list[i]->entries->size(); ++j) {
             string tmp = (*table_list[i]->entries)[j]->sym_name;
             if((*table_list[i]->entries)[j]->sym_kind != KIND_FUNC) {
-                if(m->variable_name == tmp && (*table_list[i]->entries)[j]->decl_check == 1) { // have declare
+                if(name_len_check == tmp && (*table_list[i]->entries)[j]->decl_check == 1) { // have declare
                     tmp_arr->type_set = (*table_list[i]->entries)[j]->sym_type->type_set;
                     tmp_arr->type = (*table_list[i]->entries)[j]->sym_type->type;
-                    tmp_arr->var_name = m->variable_name;
+                    tmp_arr->var_name = name_len_check;
                     tmp_arr->var_line = m->line_number;
                     tmp_arr->var_col = m->col_number;
                     error_p = 1;
@@ -588,7 +613,7 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 
     // undeclared in any table
     if(error_p == 0) {
-        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": use of undeclared identifier '" << m->variable_name << "'\n";
+        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": use of undeclared identifier '" << name_len_check << "'\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
         delete_info(tmp_arr); // free memory
@@ -597,16 +622,14 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
 
     // check array reference
     if (m->expression_node_list != nullptr) {
-        vector<bool> expr_list;
+        vector<bool> expr_list; expr_list.clear();
         int expr_cnt = 0;
         for(uint i = 0; i < m->expression_node_list->size(); ++i) {
             int cnt = type_list.size();
             (*(m->expression_node_list))[i]->accept(*this);
 
-            // check no error
+            // check expression child node error
             if((type_list.size() - cnt) < 1) {
-                // delete_info(tmp_arr); // free memory
-                // return ;
                 expr_list.push_back(false);
             } else {
                 expr_list.push_back(true);
@@ -620,12 +643,12 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
             expr_param.push(tmp);
         }
         for(int i = 0; i < expr_list.size(); ++i) {
-
             if(expr_list[i]) {
                 VariableInfo* tmp_type = expr_param.top();
                 expr_param.pop();
                 if(tmp_type->type != TYPE_INTEGER) {
-                    std::cerr << "<Error> Found in line " << tmp_type->var_line << ", column " << tmp_type->var_col << ": index of array reference must be an integer\n";
+                    std::cerr << "<Error> Found in line " << tmp_type->var_line << ", column " << tmp_type->var_col;
+                    std::cerr << ": index of array reference must be an integer\n";
                     std::cerr << "    " << arr_token[tmp_type->var_line] << '\n';
                     space_arrow(tmp_type->var_col);
 
@@ -643,7 +666,6 @@ void SemanticAnalyzer::visit(VariableReferenceNode *m) {
                 dimension_cnt--;
                 delete_info(tmp_type); // free memory
             } else {
-
                 // free memory
                 delete_info(tmp_arr);
                 while (!expr_param.empty()) { 
@@ -716,7 +738,7 @@ void SemanticAnalyzer::visit(BinaryOperatorNode *m) {
     int str_plus = 0;
     string left_out = type_return(left_op), right_out = type_return(right_op);
     if(use_opd == 1 || use_opd == 5) {
-        if( (left_out != "integer" && left_out != "real") || (right_out != "integer" && right_out != "real")) {
+        if((left_out != "integer" && left_out != "real") || (right_out != "integer" && right_out != "real")) {
             if(use_opd == 5 && (left_out == "string" && right_out == "string")) {
                 str_plus = 1;
             }
@@ -908,6 +930,7 @@ void SemanticAnalyzer::visit(IfNode *m) {
         }
     }
 
+    // check If Node related error
     if(condition_error == 0) {
         if_condition_type = type_list.back();
         type_list.pop_back();
@@ -918,8 +941,8 @@ void SemanticAnalyzer::visit(IfNode *m) {
             std::cerr << ": the expression of condition must be boolean type\n";
             std::cerr << "    " << arr_token[if_condition_type->var_line] << '\n';
             space_arrow(if_condition_type->var_col);
-            // delete_info(if_condition_type); // free memory
-            // return ;
+            delete_info(if_condition_type); // free memory
+            return ;
         }
 
         // free memory
@@ -950,6 +973,7 @@ void SemanticAnalyzer::visit(WhileNode *m) {
         }
     }
 
+    // check While Node related error
     if(condition_error == 0) {
         while_condition_type = type_list.back();
         type_list.pop_back();
@@ -960,8 +984,8 @@ void SemanticAnalyzer::visit(WhileNode *m) {
             std::cerr << ": the expression of condition must be boolean type\n";
             std::cerr << "    " << arr_token[while_condition_type->var_line] << '\n';
             space_arrow(while_condition_type->var_col);
-            // delete_info(while_condition_type); // free memory
-            // return;
+            delete_info(while_condition_type); // free memory
+            return;
         }
 
         // free memory
@@ -1006,6 +1030,13 @@ void SemanticAnalyzer::visit(ForNode *m) {
     type_list.pop_back();
     first_value = type_list.back();
     type_list.pop_back();
+    
+    // visit body
+    if (m->body != nullptr) {
+        for(uint i = 0; i < m->body->size(); ++i) {
+            (*(m->body))[i]->accept(*this);
+        }
+    }
 
     // check left integer not greater than right integer
     if(first_value->int_literal > second_value->int_literal) {
@@ -1013,17 +1044,12 @@ void SemanticAnalyzer::visit(ForNode *m) {
         std::cerr << ": the lower bound of iteration count must be smaller than or equal to the upper bound\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
         space_arrow(m->col_number);
+        table_list.pop_back();
         for_check_vec.pop_back();
+        for_check_p = 0;
         delete_info(first_value); // free memory
         delete_info(second_value); // free memory
         return ;
-    }
-    
-    // visit body
-    if (m->body != nullptr) {
-        for(uint i = 0; i < m->body->size(); ++i) {
-            (*(m->body))[i]->accept(*this);
-        }
     }
 
     // leave current forloop need to pop some information and clear information
@@ -1063,6 +1089,7 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
         }
     }
 
+    // check Return Node related error
     // no func_table mean return not in function
     if(func_table == nullptr) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": program/procedure should not return a value\n";
@@ -1074,13 +1101,19 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
 
     // check return type same as function type
     if(ret_type != func_type) {
-        std::cerr << "<Error> Found in line " << return_type->var_line << ", column " << return_type->var_col << ": return '" << ret_type;
-        std::cerr << "' from a function with return type '";
-        std::cerr << func_type << "'\n";
-        std::cerr << "    " << arr_token[return_type->var_line] << '\n';
-        space_arrow(return_type->var_col);
-        delete_info(return_type); // free memory
-        return ;
+        int type_ok = 0;
+        if(func_type == "real" && ret_type == "integer") {
+            type_ok = 1;
+        }
+        if(type_ok == 0) {
+            std::cerr << "<Error> Found in line " << return_type->var_line << ", column " << return_type->var_col << ": return '" << ret_type;
+            std::cerr << "' from a function with return type '";
+            std::cerr << func_type << "'\n";
+            std::cerr << "    " << arr_token[return_type->var_line] << '\n';
+            space_arrow(return_type->var_col);
+            delete_info(return_type); // free memory
+            return ;
+        }
     }
 
      // free memory
@@ -1089,6 +1122,12 @@ void SemanticAnalyzer::visit(ReturnNode *m) {
 
 void SemanticAnalyzer::visit(FunctionCallNode *m) {
 
+    // check name length, bigger than 32 will ignore
+    string name_len_check = m->function_name;
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->function_name, 0, 32);
+    }
+
     // check func whether have declared or not
     int error_p = 0;
     VariableInfo* funccall_type = new VariableInfo();
@@ -1096,7 +1135,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
     for(uint i = 0; i < table_list[0]->entries->size(); ++i) {
         string tmp = (*table_list[0]->entries)[i]->sym_name;
         if((*table_list[0]->entries)[i]->sym_kind == KIND_FUNC) {
-            if(m->function_name == tmp && (*table_list[0]->entries)[i]->decl_check == 1) { // have declare
+            if(name_len_check == tmp && (*table_list[0]->entries)[i]->decl_check == 1) { // have declare
                 funccall_type->type_set = (*table_list[0]->entries)[i]->sym_type->type_set;
                 funccall_type->type = (*table_list[0]->entries)[i]->sym_type->type;
                 funccall_type->array_range = (*table_list[0]->entries)[i]->sym_type->array_range;
@@ -1110,22 +1149,38 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
             }
         }
     }
-    if(error_p == 0) {
-        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": used of undeclared function '" << m->function_name << "'\n";
-        std::cerr << "    " << arr_token[m->line_number] << '\n';
-        space_arrow(m->col_number);
-        delete_info(funccall_type); // free memory
-        return ; // undeclare not need to check arguements
-    }
 
     // check parameters
     int param_cnt = 0;
+    vector<bool> param_list; param_list.clear(); 
     if (m->arguments != nullptr) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
+            int cnt = type_list.size();
             (*(m->arguments))[i]->accept(*this);
             param_cnt++;
+            if(type_list.size() - cnt < 1) {
+                param_list.push_back(false);
+            } else {
+                param_list.push_back(true);
+            }
         }
     }
+
+    if(error_p == 0) {
+        std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": used of undeclared function '" << name_len_check << "'\n";
+        std::cerr << "    " << arr_token[m->line_number] << '\n';
+        space_arrow(m->col_number);
+
+        // free memory
+        for(uint i = 0; i < param_cnt; ++i) {
+            VariableInfo* tmp = type_list.back();
+            type_list.pop_back();
+            delete_info(tmp);
+        }
+        delete_info(funccall_type);
+        return ; // undeclare not need to check arguements
+    }
+
     if(param_cnt != param_info.size()) {
         std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": too few/much arguments to function invocation\n";
         std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -1144,30 +1199,45 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
     // check actual parameters type whether have same as the formal parameters type in the function declaration
     stack<VariableInfo*> func_param;
     for(uint i = 0; i < param_cnt; ++i) {
-        VariableInfo* tmp = type_list.back();
-        type_list.pop_back();
-        func_param.push(tmp);
-    }
-    for(uint i = 0; i < param_cnt; ++i) {
-        VariableInfo* tmp = func_param.top();
-        func_param.pop();
-        string call_param = type_return(tmp), acc_param = function_call_return(param_info[i]);
-        if(call_param != acc_param) {
-            std::cerr << "<Error> Found in line " << tmp->var_line << ", column " << tmp->var_col << ": incompatible types passing '" << call_param;
-            std::cerr << "' to parameter of type '" << acc_param << "'\n";
-            std::cerr << "    " << arr_token[tmp->var_line] << '\n';
-            space_arrow(tmp->var_col);
-            // delete funccall_type; // free memory
-            // return ; // function call param type wrong
+        if(param_list[i]) {
+            VariableInfo* tmp = type_list.back();
+            type_list.pop_back();
+            func_param.push(tmp);
         }
-        delete_info(tmp); // free memory
+    }
+
+    int check_param = 0;
+    for(uint i = 0; i < param_cnt; ++i) {
+        if(param_list[i]) {
+            VariableInfo* tmp = func_param.top();
+            func_param.pop();
+            string call_param = type_return(tmp), acc_param = function_call_return(param_info[i]);
+            if(call_param != acc_param) {
+                int type_ok = 0;
+                if(call_param == "integer" && acc_param == "real") {
+                    type_ok = 1;
+                }
+                if(type_ok == 0) {
+                    std::cerr << "<Error> Found in line " << tmp->var_line << ", column " << tmp->var_col << ": incompatible types passing '" << call_param;
+                    std::cerr << "' to parameter of type '" << acc_param << "'\n";
+                    std::cerr << "    " << arr_token[tmp->var_line] << '\n';
+                    space_arrow(tmp->var_col);
+                    check_param = 1;
+                }
+            }
+            delete_info(tmp); // free memory
+        }
     }
 
     // return functioncall information
-    funccall_type->var_name = m->function_name;
-    funccall_type->var_line = m->line_number;
-    funccall_type->var_col = m->col_number;
-    type_list.push_back(funccall_type);
+    if(check_param == 0) {
+        funccall_type->var_name = name_len_check;
+        funccall_type->var_line = m->line_number;
+        funccall_type->var_col = m->col_number;
+        type_list.push_back(funccall_type);
+    } else {
+        delete_info(funccall_type);
+    }
 
     // clear pointer
     funccall_type = nullptr;

@@ -207,6 +207,12 @@ void dumpSymbol(SymbolTableNode* symbol_table) {
 
 void TableConstructor::visit(ProgramNode *m) {
 
+    // check name length, bigger than 32 will ignore
+    string name_len_check = m->program_name;
+    if(name_len_check.length() > 32) {
+        name_len_check = name_len_check.assign(m->program_name, 0, 32);
+    }
+
     // create program table, and push to list
     vector<SymbolEntryNode*>* entries = new vector<SymbolEntryNode*>();
     SymbolTableNode* symbol_table = new SymbolTableNode(entries);
@@ -217,8 +223,8 @@ void TableConstructor::visit(ProgramNode *m) {
     vector<VariableInfo*> tmp2;
     tmp->type_set = UNKNOWN_SET;
     tmp->type = TYPE_VOID;
-    tmp->var_name = m->program_name;
-    SymbolEntryNode* symbol_entry = new SymbolEntryNode(m->program_name, KIND_PROG, 0, tmp, tmp2);
+    tmp->var_name = name_len_check;
+    SymbolEntryNode* symbol_entry = new SymbolEntryNode(name_len_check, KIND_PROG, 0, tmp, tmp2);
     symbol_table_list[0]->entries->push_back(symbol_entry);
     current_table = symbol_table;
 

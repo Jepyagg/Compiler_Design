@@ -459,10 +459,8 @@ void SemanticAnalyzer::visit(AssignmentNode *m) {
         // check left child type same as right child type
         int type_con = 0;
         if(left_type != nullptr && right_type != nullptr && variable_error == 0 && expression_error == 0) {
-            if(left_type->type == TYPE_INTEGER || left_type->type == TYPE_REAL) {
-                if(right_type->type == TYPE_INTEGER || right_type->type == TYPE_REAL) {
-                    type_con = 1;
-                }
+            if(left_type->type == TYPE_REAL && right_type->type == TYPE_INTEGER) {
+                type_con = 1;
             }
             if(left_type->type != right_type->type && type_con == 0) {
                 string first_ans = type_return(left_type), second_ans = type_return(right_type);

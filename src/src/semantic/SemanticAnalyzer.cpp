@@ -1149,7 +1149,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
     }
 
     // check parameters
-    int param_cnt = 0;
+    int param_cnt = 0, param_cnt2 = 0;
     vector<bool> param_list; param_list.clear(); 
     if (m->arguments != nullptr) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
@@ -1159,6 +1159,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
             if(type_list.size() - cnt < 1) {
                 param_list.push_back(false);
             } else {
+                param_cnt2++;
                 param_list.push_back(true);
             }
         }
@@ -1185,7 +1186,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
         space_arrow(m->col_number);
 
         // free memory
-        for(uint i = 0; i < param_cnt; ++i) {
+        for(uint i = 0; i < param_cnt2; ++i) {
             VariableInfo* tmp = type_list.back();
             type_list.pop_back();
             delete_info(tmp);

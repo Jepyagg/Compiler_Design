@@ -20,6 +20,7 @@
 #include "AST/ASTDumper.hpp"
 #include "AST/symbol_entry.hpp"
 #include "AST/symbol_table.hpp"
+#include "codegen/codegen.hpp"
 #include "semantic/SemanticAnalyzer.hpp"
 #include "symbol/TableConstructor.hpp"
 #include "core/error.h"
@@ -70,6 +71,8 @@ struct id_info{
 
 static Node AST;
 string file_name = "";
+string file_name2 = "";
+string output_dir = "";
 int error_find = 0;
 
 %}
@@ -544,9 +547,9 @@ void yyerror(const char *msg) {
 }
 
 int main(int argc, const char *argv[]) {
-    CHECK((argc >= 2) && (argc<=3), "Usage: ./parser <filename> [--dump-ast]\n");
+    CHECK((argc >= 2) && (argc <= 4), "Usage: ./parser <filename> [--dump-ast][--output_code_dir]\n");
     
-    int isDumpNeed;
+    int isDumpNeed, isoutput_dir;
     if(argc == 3){
         isDumpNeed = strcmp(argv[2], "--dump-ast");
         if(isDumpNeed != 0){
@@ -584,6 +587,23 @@ int main(int argc, const char *argv[]) {
     // construct a SemanticAnalyzer to analyze the AST
     SemanticAnalyzer analyzer;
     AST->accept(analyzer);
+
+    // dup record file name
+    // record file name, output_dir
+    string tmp2(argv[1]);
+    string tmp3(argv[3]);
+    output_dir = tmp3;
+    for(int i = tmp2.size() - 3; i >= 0; --i) {
+        if(tmp2[i] == '.' || tmp2[i] == '/') {
+            break;
+        } else {
+            file_name2 = tmp2[i] + file_name2;
+        }
+    }
+
+    // code generation
+    codegen gen;
+    AST->accept(gen);
 
     delete AST;
     fclose(fp);

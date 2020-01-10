@@ -7,6 +7,7 @@ INCLUDE = -Iinclude
 
 SCANNER = scanner
 PARSER  = parser
+COMPILER  = compiler
 
 ASTDIR = src/AST/
 AST := $(shell find $(ASTDIR) -name '*.cpp')
@@ -20,12 +21,16 @@ TABLER := $(shell find $(TABLERDIR) -name '*.cpp')
 SEMANTICDIR = src/semantic/
 SEMANTIC := $(shell find $(SEMANTICDIR) -name '*.cpp')
 
+CODEGENDIR = src/codegen/
+CODEGEN := $(shell find $(CODEGENDIR) -name '*.cpp')
+
 SRC := $(AST) \
        $(VISITOR) \
        $(TABLER) \
-       $(SEMANTIC)
+       $(SEMANTIC) \
+       $(CODEGEN)
 
-EXEC = $(PARSER)
+EXEC = $(COMPILER)
 OBJS = $(PARSER:=.cpp) \
        $(SCANNER:=.cpp) \
        $(SRC)

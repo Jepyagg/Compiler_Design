@@ -32,6 +32,7 @@ SymbolTableNode* cur_func_table = nullptr;                              // if in
 vector<SymbolTableNode*> code_table_list;                               // symbol table list
 ofstream fout;                                                          // open file
 bool tempuse[5];                                                        // check which tem can use
+bool saveuse[8];
 int curr_idx = 65;
 int local_val = 0, assign_check = 0;
 int local_idx = -1;
@@ -45,10 +46,21 @@ void clear_temp() {
     tempuse[1] = false;
 }
 
+void check_saveuse(int idx, bool state) {
+    if(idx > 6) {
+        saveuse[idx - 12] = state;
+    }
+}
+
 int get_stack_idx() {
     for(int i = 0; i < 5; ++i) {
         if(!tempuse[i]) {
             return i;
+        }
+    }
+    for(int i = 0; i < 8; ++i) {
+        if(!saveuse[i]) {
+            return i + 12;
         }
     }
     return -1;
@@ -147,6 +159,8 @@ void codegen::visit(DeclarationNode *m) {
 }
 
 void codegen::visit(VariableNode *m) {
+
+    int can_use_temp = get_stack_idx();
     if (m->constant_value_node != nullptr) {
         m->constant_value_node->accept(*this);
     }
@@ -156,11 +170,10 @@ void codegen::visit(VariableNode *m) {
         string tmp = (*cur_table->entries)[i]->sym_name;
         if(tmp == m->variable_name && (*cur_table->entries)[i]->sym_kind == KIND_CONST) {
             // store value to stack
-            cout <<  (*cur_table->entries)[i]->stack_idx << "   asdfsdf\n";
-            int can_use_temp = get_stack_idx();
             string stack_idx = to_string((*cur_table->entries)[i]->stack_idx);
             string reg_tmp = "t" + to_string(can_use_temp);
             fout << "    sw " + reg_tmp + ", " + stack_idx + "(s0)\n";
+            tempuse[can_use_temp] = false;
         }
     }
 }
@@ -170,6 +183,7 @@ void codegen::visit(ConstantValueNode *m) {
     string intvalue = to_string(m->constant_value->int_literal);
     string reg_tmp = "t" + to_string(can_use_temp);
     fout << "    li " + reg_tmp + ", " + intvalue + "\n";
+    tempuse[can_use_temp] = true;
 }
 
 void codegen::visit(FunctionNode *m) {
@@ -351,6 +365,10 @@ void codegen::visit(VariableReferenceNode *m) {
                     if(expr_check == 1) {
                         string idx = to_string(local_idx);
                         string reg_tmp = "t" + to_string(can_use_temp);
+                        if(can_use_temp > 6) {
+                            reg_tmp = "s" + to_string(can_use_temp - 10);
+                            saveuse[can_use_temp - 12] = true;
+                        }
                         fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
                     }
                 }
@@ -365,16 +383,20 @@ void codegen::visit(VariableReferenceNode *m) {
         if((*code_table_list[0]->entries)[j]->sym_kind == KIND_VAR || (*code_table_list[0]->entries)[j]->sym_kind == KIND_CONST) {
             if(m->variable_name == tmp && find == 0) {
                 find = 1;
-                if(assign_check == 1) {
-                    can_use_temp++;
-                }
                 string reg_tmp = "t" + to_string(can_use_temp);
+                if(can_use_temp > 6) {
+                    reg_tmp = "s" + to_string(can_use_temp - 10);
+                    saveuse[can_use_temp - 12] = true;
+                }
                 tmp_idx = can_use_temp;
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
                 if(expr_check == 1) {
                     string idx = to_string((*code_table_list[0]->entries)[j]->stack_idx);
                     string reg_tmp2 = "t" + to_string(can_use_temp + 1);
+                    if(can_use_temp > 6) {
+                        reg_tmp2 = "s" + to_string(can_use_temp - 10 + 1);
+                    }
                     fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
                     fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
                 }
@@ -417,6 +439,13 @@ void codegen::visit(BinaryOperatorNode *m) {
     string left_idx = "t" + to_string(idx);
     string right_idx = "t" + to_string(idx + 1);
     string tmp_idx = "t" + to_string(idx + 2);
+
+    if(idx > 5) {
+        left_idx = "s" + to_string(idx - 10);
+        right_idx = "s" + to_string(idx - 10 + 1);
+        tmp_idx = "s" + to_string(idx - 10 + 2);
+    }
+
     string command = tmp_idx + ", " + left_idx + ", " + right_idx + "\n";
     string branch_label = "L" + to_string(label_use);
     string while_str = "L" + to_string(while_label);
@@ -430,6 +459,7 @@ void codegen::visit(BinaryOperatorNode *m) {
     }
 
     tempuse[idx] = true;
+    check_saveuse(idx, true);
     expr_check = 1;
     if (m->right_operand != nullptr) {
         m->right_operand->accept(*this);
@@ -488,6 +518,7 @@ void codegen::visit(BinaryOperatorNode *m) {
         fout << "    mv " + left_idx + ", " + tmp_idx + "\n";
     }
     tempuse[idx + 1] = false;
+    check_saveuse(idx + 1, false);
     expr_check = 0;
 }
 

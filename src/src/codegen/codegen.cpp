@@ -682,8 +682,7 @@ void codegen::visit(FunctionCallNode *m) {
             cnt++;
             (*(m->arguments))[i]->accept(*this);
             int local_check = local_val, local_idx_check = local_idx;
-            int a_idx = get_a_tmp();
-            string reg_tmp = "a" + to_string(a_idx);
+            string reg_tmp = "a" + to_string(i);
             if(local_check == 0) {
                 string reg_tmp2 = check_and_change(global_idx);
                 tempuse[global_idx] = false;
@@ -694,7 +693,6 @@ void codegen::visit(FunctionCallNode *m) {
                 fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
                 local_val = 0;
             }
-            a_tmp[a_idx] = true;
         }
     }
     string reg_tmp = check_and_change(use_idx);
@@ -702,8 +700,4 @@ void codegen::visit(FunctionCallNode *m) {
     fout << "    mv " + reg_tmp + ", a0\n";
     global_idx = use_idx;
     expr_check = tmp_expr;
-    int end_a_tmp = get_a_tmp() - 1;
-    for(int i = 0; i < cnt; ++i) {
-        a_tmp[end_a_tmp - i] = false;
-    }
 }

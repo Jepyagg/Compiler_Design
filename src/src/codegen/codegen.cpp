@@ -33,7 +33,7 @@ vector<SymbolTableNode*> code_table_list;                               // symbo
 ofstream fout;                                                          // open file
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
 bool a_tmp[8];
-int curr_idx = 65;
+int curr_idx = -20;
 int local_val = 0, assign_check = 0;
 int local_idx = -1;
 int expr_check = 0;
@@ -61,6 +61,7 @@ int get_a_tmp() {
     return -1;
 }
 
+// get temporary register number
 int get_stack_idx() {
     for(int i = 0; i < 15; ++i) {
         if(!tempuse[i]) {
@@ -85,6 +86,7 @@ void codegen::visit(ProgramNode *m) {
     cur_table = m->symbol_table_node;
     code_table_list.push_back(m->symbol_table_node);
     
+    // use symbol table information, so no need visit
     // visit declaration
     // if (m->declaration_node_list != nullptr) {
     //     for(uint i = 0; i < m->declaration_node_list->size(); ++i) {
@@ -113,6 +115,7 @@ void codegen::visit(ProgramNode *m) {
         }
     }
 
+    // initialize all temporary register
     for(int i = 0; i < 8; ++i) {
         tempuse[i] = false;
     }
@@ -120,9 +123,13 @@ void codegen::visit(ProgramNode *m) {
     // visit function
     if(m->function_node_list != nullptr) {
         for(uint i = 0; i < m->function_node_list->size(); ++i) {
-            curr_idx = - 20;
             (*(m->function_node_list))[i]->accept(*this);
+
+            // reset stack index
+            curr_idx = - 20;
         }
+
+        // reset all temporary register
         for(int i = 0; i < 8; ++i) {
             tempuse[i] = false;
         }
@@ -139,13 +146,12 @@ void codegen::visit(ProgramNode *m) {
     fout << "    sd s0, 48(sp)\n";
     fout << "    addi s0, sp, 64\n";
 
-    curr_idx = -20;
     // visit compound
     if (m->compound_statement_node != nullptr) {
         m->compound_statement_node->accept(*this);
     }
 
-    // gen main enc code
+    // gen main end code
     fout << "    ld ra, 56(sp)\n";
     fout << "    ld s0, 48(sp)\n";
     fout << "    addi sp, sp, 64\n";
@@ -155,6 +161,8 @@ void codegen::visit(ProgramNode *m) {
 }
 
 void codegen::visit(DeclarationNode *m) {
+
+    // visit variable node
     if (m->variables_node_list != nullptr) {
         for(uint i = 0; i < m->variables_node_list->size(); ++i) {
             (*(m->variables_node_list))[i]->accept(*this);
@@ -165,6 +173,8 @@ void codegen::visit(DeclarationNode *m) {
 void codegen::visit(VariableNode *m) {
 
     int can_use_temp = get_stack_idx();
+
+    // visit constant value
     if (m->constant_value_node != nullptr) {
         m->constant_value_node->accept(*this);
     }
@@ -173,6 +183,7 @@ void codegen::visit(VariableNode *m) {
     for(uint i = 0; i < cur_table->entries->size(); ++i) {
         string tmp = (*cur_table->entries)[i]->sym_name;
         if(tmp == m->variable_name && (*cur_table->entries)[i]->sym_kind == KIND_CONST) {
+            
             // store value to stack
             string stack_idx = to_string((*cur_table->entries)[i]->stack_idx);
             string reg_tmp = check_and_change(can_use_temp);
@@ -189,6 +200,8 @@ void codegen::visit(VariableNode *m) {
 }
 
 void codegen::visit(ConstantValueNode *m) {
+
+    // use temporary register to store value
     int can_use_temp = get_stack_idx();
     string intvalue = to_string(m->constant_value->int_literal);
     string reg_tmp = check_and_change(can_use_temp);
@@ -198,11 +211,12 @@ void codegen::visit(ConstantValueNode *m) {
 
 void codegen::visit(FunctionNode *m) {
 
+    // initialize function stack index
     int stack_index = -20;
     cur_table = m->symbol_table_node; // current table is function(first compound) table
     cur_func_table = m->symbol_table_node; // point to function(first compound) table
 
-    // gen function code
+    // generate text code and function prologue code
     fout << ".text\n"; 
     fout << "    .align 2\n"; 
     fout << "    .global " + m->function_name + "\n"; 
@@ -213,12 +227,13 @@ void codegen::visit(FunctionNode *m) {
     fout << "    sd s0, 48(sp)\n";
     fout << "    addi s0, sp, 64\n";
     
-    // search table to find param
+    // search table to find parameters
     int tmp_stack_index = stack_index;
     for(uint i = 0; i < cur_table->entries->size(); ++i) {
         string tmp = (*cur_table->entries)[i]->sym_name;
         if((*cur_table->entries)[i]->sym_kind == KIND_PARAM) {
-            // store param to stack
+            
+            // store parameter to stack
             if(i < 8) {
                 (*cur_table->entries)[i]->stack_idx = tmp_stack_index;
                 string idx = to_string(i);
@@ -230,17 +245,20 @@ void codegen::visit(FunctionNode *m) {
     }
     curr_idx = tmp_stack_index;
 
+    // use symbol table information, so no need visit
+    // visit function parameters
     // if (m->parameters != nullptr) {
     //     for(uint i = 0; i < m->parameters->size(); ++i) {
     //         (*(m->parameters))[i]->node->accept(*this);
     //     }
     // }
 
+    // visit function body
     if (m->body != nullptr) {
         m->body->accept(*this);
     }
 
-    // gen function end code
+    // gen function epilogue code
     fout << "    ld ra, 56(sp)\n";
     fout << "    ld s0, 48(sp)\n";
     fout << "    addi sp, sp, 64\n";
@@ -324,11 +342,13 @@ void codegen::visit(PrintNode *m) {
 
     int use_idx = get_stack_idx();
     
+    // visit expression node
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
+    
+    // generate print code
     int local_check = local_val, local_idx_check = local_idx;
-    // gen print code
     if(local_check == 0) {
         string reg_tmp = check_and_change(use_idx);
         fout << "    lw a0, 0(" + reg_tmp + ")\n";
@@ -343,13 +363,16 @@ void codegen::visit(PrintNode *m) {
 
 void codegen::visit(ReadNode *m) {
 
-    // gen read code
+    // generate read code
     int use_idx = get_stack_idx();
     fout << "    jal ra, read\n";
     
+    // visit variable reference node
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
     }
+
+    // generate read code
     int local_check = local_val, local_idx_check = local_idx;
     if(local_check == 0) {
         string reg_tmp = check_and_change(use_idx);
@@ -397,11 +420,11 @@ void codegen::visit(VariableReferenceNode *m) {
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
                 if(expr_check == 1) {
-                    string idx = to_string((*code_table_list[0]->entries)[j]->stack_idx);
                     string reg_tmp2 = check_and_change(can_use_temp + 1);
                     fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
                     fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
                 }
+                // fout << "    sw " + reg_tmp2 + ", " + idx + "(s0)\n";
             }
         }
         if(find == 1) {
@@ -442,7 +465,7 @@ void codegen::visit(BinaryOperatorNode *m) {
     string right_idx = check_and_change(idx + 1);
     string tmp_idx = check_and_change(idx + 2);
 
-    string command = tmp_idx + ", " + left_idx + ", " + right_idx + "\n";
+    string command = tmp_idx + ", " + right_idx + ", " + left_idx + "\n";
     string branch_label = "L" + to_string(label_use);
     string while_str = "L" + to_string(while_label);
     string branch_command = left_idx + ", " + right_idx + ", " + branch_label + "\n";

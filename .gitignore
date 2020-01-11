@@ -8,6 +8,7 @@ scanner.cpp
 /test/outputs
 /src/hw4
 /src/*.s
+/src/*.p
 /src/io.c
 /src/tt
 compiler

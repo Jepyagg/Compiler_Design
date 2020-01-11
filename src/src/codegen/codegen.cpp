@@ -42,6 +42,7 @@ int global_idx = -1;
 int label_use = 1;
 int while_cond = 0, while_label = -1;
 int for_cond = 0, for_idx = 0;
+int const_state = 0;
 
 string check_and_change(int idx) {
     if(idx > 6) {
@@ -199,6 +200,8 @@ void codegen::visit(ConstantValueNode *m) {
     string reg_tmp = check_and_change(can_use_temp);
     fout << "    li " + reg_tmp + ", " + intvalue + "\n";
     tempuse[can_use_temp] = true;
+    global_idx = can_use_temp;
+    const_state = 1;
 }
 
 void codegen::visit(FunctionNode *m) {
@@ -719,36 +722,44 @@ void codegen::visit(FunctionCallNode *m) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
             cnt++;
             funccall_check = 0;
+            const_state = 0;
             (*(m->arguments))[i]->accept(*this);
             int local_check = local_val, local_idx_check = local_idx;
-            string reg_tmp = "";
-            if(i < 8) {
-                reg_tmp = "a" + to_string(i);
-            } else {
-                int tmp_idx = get_stack_idx();
-                reg_tmp = check_and_change(tmp_idx);
-                tempuse[tmp_idx] = true;
-            }
-            string reg_idx = to_string(curr_idx);
+            string reg_tmp = "", reg_idx = to_string(curr_idx);
             curr_idx -= 4;
-            if(local_check == 0) {
-                string reg_tmp2 = check_and_change(global_idx);
-                tempuse[global_idx] = false;
-                global_idx = -1;
-                if(funccall_check == 1) {
-                    fout << "    sw " + reg_tmp2 + ", " + reg_idx + "(s0)\n";
-                    fout << "    lw " + reg_tmp + ", " + reg_idx + "(s0)\n";
+            if(const_state == 0) {
+                if(i < 8) {
+                    reg_tmp = "a" + to_string(i);
                 } else {
-                    fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+                    int tmp_idx = get_stack_idx();
+                    reg_tmp = check_and_change(tmp_idx);
+                    tempuse[tmp_idx] = true;
                 }
+                if(local_check == 0) {
+                    string reg_tmp2 = check_and_change(global_idx);
+                    tempuse[global_idx] = false;
+                    global_idx = -1;
+                    if(funccall_check == 1) {
+                        fout << "    sw " + reg_tmp2 + ", " + reg_idx + "(s0)\n";
+                        fout << "    lw " + reg_tmp + ", " + reg_idx + "(s0)\n";
+                    } else {
+                        fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+                    }
+                } else {
+                    string idx = to_string(local_idx_check);
+                    fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
+                    local_val = 0;
+                }
+                fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
             } else {
-                string idx = to_string(local_idx_check);
-                fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
-                local_val = 0;
+                tempuse[global_idx] = false;
+                reg_tmp = check_and_change(global_idx);
+                fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
             }
-            fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
         }
     }
+
+    // store arguments to correct register
     for(int i = cnt - 1; i >= 0; --i) {
         curr_idx += 4;
         string idx = to_string(curr_idx);
@@ -756,11 +767,13 @@ void codegen::visit(FunctionCallNode *m) {
         if(i < 8) {
             reg_tmp = "a" + to_string(i);
         } else {
-            int tmp_idx = get_stack_idx() - 1;
-            reg_tmp = "t" + to_string(tmp_idx - 1);
+            int tmp_idx = i - 8;
+            reg_tmp = "t" + to_string(tmp_idx);
         }
         fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
     }
+
+    // store return value to correct register
     string reg_tmp = check_and_change(use_idx);
     fout << "    jal ra, " + m->function_name + "\n";
     fout << "    mv " + reg_tmp + ", a0\n";

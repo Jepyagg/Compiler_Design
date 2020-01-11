@@ -390,6 +390,8 @@ void codegen::visit(VariableReferenceNode *m) {
     // search table list to check declare
     int can_use_temp = get_stack_idx();
     int find = 0;
+
+    // search local table
     for(int i = code_table_list.size() - 1; i > 0; --i) {
         for(uint j = 0; j < code_table_list[i]->entries->size(); ++j) {
             string tmp = (*code_table_list[i]->entries)[j]->sym_name;
@@ -410,21 +412,24 @@ void codegen::visit(VariableReferenceNode *m) {
             break;
         }
     }
+
+    // search global table
     for(uint j = 0; j < code_table_list[0]->entries->size(); ++j) {
         string tmp = (*code_table_list[0]->entries)[j]->sym_name;
         if((*code_table_list[0]->entries)[j]->sym_kind == KIND_VAR || (*code_table_list[0]->entries)[j]->sym_kind == KIND_CONST) {
             if(m->variable_name == tmp && find == 0) {
                 find = 1;
+
+                // generate variable reference code
                 string reg_tmp = check_and_change(can_use_temp);
+                string reg_tmp2 = check_and_change(can_use_temp + 1);
                 global_idx = can_use_temp;
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
                 if(expr_check == 1) {
-                    string reg_tmp2 = check_and_change(can_use_temp + 1);
                     fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
                     fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
                 }
-                // fout << "    sw " + reg_tmp2 + ", " + idx + "(s0)\n";
             }
         }
         if(find == 1) {

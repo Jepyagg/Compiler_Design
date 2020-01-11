@@ -32,14 +32,15 @@ SymbolTableNode* cur_func_table = nullptr;                              // if in
 vector<SymbolTableNode*> code_table_list;                               // symbol table list
 ofstream fout;                                                          // open file
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
-bool saveuse[8];
+bool a_tmp[8];
 int curr_idx = 65;
 int local_val = 0, assign_check = 0;
 int local_idx = -1;
 int expr_check = 0;
-int tmp_idx = -1;
+int global_idx = -1;
 int label_use = 1;
 int while_cond = 0, while_label = -1;
+int for_cond = 0, for_idx = 0;
 
 string check_and_change(int idx) {
     if(idx > 6) {
@@ -49,6 +50,15 @@ string check_and_change(int idx) {
         string tmp = "t" + to_string(idx);
         return tmp;
     }
+}
+
+int get_a_tmp() {
+    for(int i = 0; i < 8; ++i) {
+        if(!a_tmp[i]) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 int get_stack_idx() {
@@ -168,6 +178,12 @@ void codegen::visit(VariableNode *m) {
             string reg_tmp = check_and_change(can_use_temp);
             fout << "    sw " + reg_tmp + ", " + stack_idx + "(s0)\n";
             tempuse[can_use_temp] = false;
+            break;
+        }
+        if(for_cond == 1 && tmp == m->variable_name) {
+            (*cur_table->entries)[i]->stack_idx = curr_idx;
+            curr_idx -= 4;
+            break;
         }
     }
 }
@@ -297,7 +313,11 @@ void codegen::visit(AssignmentNode *m) {
         fout << "    sw " + reg_tmp + ", " + idx + "(s0)\n";
         local_val = 0;
     }
-    tempuse[use_idx] = false;
+    if(for_cond == 0) {
+        tempuse[use_idx] = false;
+    } else {
+        for_idx = local_idx_check;
+    }
 }
 
 void codegen::visit(PrintNode *m) {
@@ -373,7 +393,7 @@ void codegen::visit(VariableReferenceNode *m) {
             if(m->variable_name == tmp && find == 0) {
                 find = 1;
                 string reg_tmp = check_and_change(can_use_temp);
-                tmp_idx = can_use_temp;
+                global_idx = can_use_temp;
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
                 if(expr_check == 1) {
@@ -580,20 +600,66 @@ void codegen::visit(WhileNode *m) {
 }
 
 void codegen::visit(ForNode *m) {
+
+    // point to current node table and push table
+    cur_table = m->symbol_table_node;
+    code_table_list.push_back(m->symbol_table_node);
+
+    int use_idx = get_stack_idx(), condition_label, finish_label, forvar_idx = 0, constant_idx;
+    condition_label = label_use++;
+    finish_label = label_use++;
+    string cond_label = "L" + to_string(condition_label);
+    string fin_label = "L" + to_string(finish_label);
+    string iter = check_and_change(use_idx);
+    string iter2 = check_and_change(use_idx + 1);
+    string iter3 = check_and_change(use_idx + 2);
+    string tmp_reg = check_and_change(use_idx + 3);
+    tempuse[use_idx + 2] = true; // add one to iter
+    
     if (m->loop_variable_declaration != nullptr) {
+        for_cond = 1;
         m->loop_variable_declaration->accept(*this);
     }
+    
     if (m->initial_statement != nullptr) {
         m->initial_statement->accept(*this);
+        forvar_idx = for_idx;
+        for_idx = 0;
+        for_cond = 0;
     }
+    constant_idx = curr_idx;
+    curr_idx -= 4;
+    string const_idx = to_string(constant_idx);
+    // visit second integer
     if (m->condition != nullptr) {
         m->condition->accept(*this);
+        fout << "    sw " + iter2 + ", " + const_idx + "(s0)\n";
     }
+
+    string forrr_idx = to_string(forvar_idx);
+    fout << cond_label + ":\n";
+    fout << "    lw " + iter + ", " + forrr_idx + "(s0)\n";
+    fout << "    lw " + iter2 + ", " + const_idx + "(s0)\n";
+    fout << "    bge " + iter + ", " + iter2 + ", " + fin_label + "\n";
+
     if (m->body != nullptr) {
         for(uint i = 0; i < m->body->size(); ++i) {
             (*(m->body))[i]->accept(*this);
         }
     }
+
+    fout << "    lw " + iter + ", " + forrr_idx + "(s0)\n";
+    fout << "    li " + iter3 + ", 1\n";
+    fout << "    addw " + tmp_reg + ", " + iter + ", " + iter3 + "\n";
+    fout << "    mv " + iter + ", " + tmp_reg + "\n";
+    fout << "    sw " + iter + ", " + forrr_idx + "(s0)\n";
+    fout << "    j " + cond_label + "\n";
+    fout << fin_label + ":\n";
+    tempuse[use_idx] = false;
+    tempuse[use_idx + 1] = false;
+    tempuse[use_idx + 2] = false;
+    curr_idx += 8;
+    code_table_list.pop_back();
 }
 
 void codegen::visit(ReturnNode *m) {
@@ -608,28 +674,36 @@ void codegen::visit(ReturnNode *m) {
 void codegen::visit(FunctionCallNode *m) {
 
     // gen function_call code
-    int use_idx = get_stack_idx(), tmp_expr = expr_check;
+    int use_idx = get_stack_idx(), tmp_expr = expr_check, cnt = 0;
     expr_check = 0;
     tempuse[use_idx] = true;
     if (m->arguments != nullptr) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
+            cnt++;
             (*(m->arguments))[i]->accept(*this);
             int local_check = local_val, local_idx_check = local_idx;
-            string reg_tmp = "a" + to_string(i);
+            int a_idx = get_a_tmp();
+            string reg_tmp = "a" + to_string(a_idx);
             if(local_check == 0) {
-                string reg_tmp2 = check_and_change(tmp_idx);
-                tempuse[tmp_idx] = false;
-                tmp_idx = -1;
+                string reg_tmp2 = check_and_change(global_idx);
+                tempuse[global_idx] = false;
+                global_idx = -1;
                 fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
             } else {
                 string idx = to_string(local_idx_check);
                 fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
                 local_val = 0;
             }
+            a_tmp[a_idx] = true;
         }
     }
     string reg_tmp = check_and_change(use_idx);
     fout << "    jal ra, " + m->function_name + "\n";
     fout << "    mv " + reg_tmp + ", a0\n";
+    global_idx = use_idx;
     expr_check = tmp_expr;
+    int end_a_tmp = get_a_tmp() - 1;
+    for(int i = 0; i < cnt; ++i) {
+        a_tmp[end_a_tmp - i] = false;
+    }
 }

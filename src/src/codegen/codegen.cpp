@@ -232,6 +232,14 @@ void codegen::visit(FunctionNode *m) {
                 string stack_idx = to_string(tmp_stack_index);
                 fout << "    sw a" + idx + ", " + stack_idx + "(s0)\n";
                 tmp_stack_index -= 4;
+            } else {
+                int use_idx = get_stack_idx();
+                (*cur_table->entries)[i]->stack_idx = tmp_stack_index;
+                string idx = check_and_change(use_idx);
+                string stack_idx = to_string(tmp_stack_index);
+                fout << "    sw " + idx + ", " + stack_idx + "(s0)\n";
+                tempuse[use_idx] = true;
+                tmp_stack_index -= 4;
             }
         }
     }
@@ -538,21 +546,30 @@ void codegen::visit(BinaryOperatorNode *m) {
 
 void codegen::visit(UnaryOperatorNode *m) {
 
+    int idx = get_stack_idx();
     string opt = "";
     switch(m->op) {
         case OP_MINUS: opt += "-"; break;
         default: break;
     }
-       
+
+    string left_idx = check_and_change(idx);
+    string zero_idx = check_and_change(idx + 1);
+    string tmp_idx = check_and_change(idx + 2);
+
+    // visit operand
+    expr_check = 1;
     if (m->operand != nullptr) {
         m->operand->accept(*this);
     }
-
+    
     if(opt == "-") {
-        fout << "    li t0, 0\n";
-        fout << "    subw t2, t0, t1\n";
-        fout << "    mv t0, t2\n";
+        fout << "    li " + zero_idx + ", 0\n";
+        fout << "    subw " + tmp_idx + ", " + zero_idx + ", " + left_idx + "\n";
+        fout << "    mv " + left_idx + ", " + tmp_idx + "\n";
+        local_val = 0;
     }
+    expr_check = 0;
 }
 
 void codegen::visit(IfNode *m) {
@@ -585,7 +602,6 @@ void codegen::visit(IfNode *m) {
         for(uint i = 0; i < m->body_of_else->size(); ++i) {
             (*(m->body_of_else))[i]->accept(*this);
         }
-        // fout << "    j " + fin_label + "\n";
     }
     fout << fin_label + ":\n";
 }
@@ -651,6 +667,7 @@ void codegen::visit(ForNode *m) {
     constant_idx = curr_idx;
     curr_idx -= 4;
     string const_idx = to_string(constant_idx);
+    
     // visit second integer
     if (m->condition != nullptr) {
         m->condition->accept(*this);
@@ -704,7 +721,14 @@ void codegen::visit(FunctionCallNode *m) {
             funccall_check = 0;
             (*(m->arguments))[i]->accept(*this);
             int local_check = local_val, local_idx_check = local_idx;
-            string reg_tmp = "a" + to_string(i);
+            string reg_tmp = "";
+            if(i < 8) {
+                reg_tmp = "a" + to_string(i);
+            } else {
+                int tmp_idx = get_stack_idx();
+                reg_tmp = check_and_change(tmp_idx);
+                tempuse[tmp_idx] = true;
+            }
             string reg_idx = to_string(curr_idx);
             curr_idx -= 4;
             if(local_check == 0) {
@@ -728,7 +752,13 @@ void codegen::visit(FunctionCallNode *m) {
     for(int i = cnt - 1; i >= 0; --i) {
         curr_idx += 4;
         string idx = to_string(curr_idx);
-        string reg_tmp = "a" + to_string(i);
+        string reg_tmp = "";
+        if(i < 8) {
+            reg_tmp = "a" + to_string(i);
+        } else {
+            int tmp_idx = get_stack_idx() - 1;
+            reg_tmp = "t" + to_string(tmp_idx - 1);
+        }
         fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
     }
     string reg_tmp = check_and_change(use_idx);

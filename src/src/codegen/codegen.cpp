@@ -32,11 +32,12 @@ SymbolTableNode* cur_func_table = nullptr;                              // if in
 vector<SymbolTableNode*> code_table_list;                               // symbol table list
 ofstream fout;                                                          // open file
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
-bool a_tmp[8];
-int curr_idx = -20;
+int a_tmp[8];                                                           // store argument's stack index 
+int curr_idx = -20;                                                     // know current stack index
+int expr_check = 0;                                                     // whether in stack or not
+int funccall_check = 0;
 int local_val = 0, assign_check = 0;
 int local_idx = -1;
-int expr_check = 0;
 int global_idx = -1;
 int label_use = 1;
 int while_cond = 0, while_label = -1;
@@ -50,15 +51,6 @@ string check_and_change(int idx) {
         string tmp = "t" + to_string(idx);
         return tmp;
     }
-}
-
-int get_a_tmp() {
-    for(int i = 0; i < 8; ++i) {
-        if(!a_tmp[i]) {
-            return i;
-        }
-    }
-    return -1;
 }
 
 // get temporary register number
@@ -470,7 +462,7 @@ void codegen::visit(BinaryOperatorNode *m) {
     string right_idx = check_and_change(idx + 1);
     string tmp_idx = check_and_change(idx + 2);
 
-    string command = tmp_idx + ", " + right_idx + ", " + left_idx + "\n";
+    string command = tmp_idx + ", " + left_idx + ", " + right_idx + "\n";
     string branch_label = "L" + to_string(label_use);
     string while_str = "L" + to_string(while_label);
     string branch_command = left_idx + ", " + right_idx + ", " + branch_label + "\n";
@@ -606,9 +598,9 @@ void codegen::visit(WhileNode *m) {
     string cond_label = "L" + to_string(condition_label);
     string bd_label = "L" + to_string(body_label);
     fout << "    j " + cond_label + "\n";
-
     label_use += 2;
     
+    // visit while body
     if (m->body != nullptr) {
         fout << bd_label + ":\n";
         for(uint i = 0; i < m->body->size(); ++i) {
@@ -616,6 +608,7 @@ void codegen::visit(WhileNode *m) {
         }
     }
 
+    // generate while condition code
     fout << cond_label + ":\n";
     if (m->condition != nullptr) {
         while_cond = 1;
@@ -708,24 +701,40 @@ void codegen::visit(FunctionCallNode *m) {
     if (m->arguments != nullptr) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
             cnt++;
+            funccall_check = 0;
             (*(m->arguments))[i]->accept(*this);
             int local_check = local_val, local_idx_check = local_idx;
             string reg_tmp = "a" + to_string(i);
+            string reg_idx = to_string(curr_idx);
+            curr_idx -= 4;
             if(local_check == 0) {
                 string reg_tmp2 = check_and_change(global_idx);
                 tempuse[global_idx] = false;
                 global_idx = -1;
-                fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+                if(funccall_check == 1) {
+                    fout << "    sw " + reg_tmp2 + ", " + reg_idx + "(s0)\n";
+                    fout << "    lw " + reg_tmp + ", " + reg_idx + "(s0)\n";
+                } else {
+                    fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+                }
             } else {
                 string idx = to_string(local_idx_check);
                 fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
                 local_val = 0;
             }
+            fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
         }
+    }
+    for(int i = cnt - 1; i >= 0; --i) {
+        curr_idx += 4;
+        string idx = to_string(curr_idx);
+        string reg_tmp = "a" + to_string(i);
+        fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
     }
     string reg_tmp = check_and_change(use_idx);
     fout << "    jal ra, " + m->function_name + "\n";
     fout << "    mv " + reg_tmp + ", a0\n";
     global_idx = use_idx;
     expr_check = tmp_expr;
+    funccall_check = 1;
 }

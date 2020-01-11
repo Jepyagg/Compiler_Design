@@ -549,7 +549,7 @@ void yyerror(const char *msg) {
 int main(int argc, const char *argv[]) {
     CHECK((argc >= 2) && (argc <= 4), "Usage: ./parser <filename> [--dump-ast][--output_code_dir]\n");
     
-    int isDumpNeed, isoutput_dir;
+    int isDumpNeed;
     if(argc == 3){
         isDumpNeed = strcmp(argv[2], "--dump-ast");
         if(isDumpNeed != 0){

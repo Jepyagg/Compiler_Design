@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdio>
+#include <cstdlib> // system()
 
 extern string file_name2;                                               // open file to write
 extern string output_dir;                                               // output directory
@@ -32,7 +33,6 @@ SymbolTableNode* cur_func_table = nullptr;                              // if in
 vector<SymbolTableNode*> code_table_list;                               // symbol table list
 ofstream fout;                                                          // open file
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
-int a_tmp[8];                                                           // store argument's stack index 
 int curr_idx = -20;                                                     // know current stack index
 int expr_check = 0;                                                     // whether in stack or not
 int funccall_check = 0;
@@ -64,7 +64,18 @@ int get_stack_idx() {
     return -1;
 }
 
+// reset all tempuseto false
+void clear_tempuse() {
+    for(int i = 0; i < 15; ++i) {
+        tempuse[i] = false;
+    }
+}
+
 void codegen::visit(ProgramNode *m) {
+
+    // make directory
+    string dir = "mkdir -p " + output_dir;
+    system(dir.c_str());
 
     // open file
     FILE *pFile;
@@ -109,9 +120,7 @@ void codegen::visit(ProgramNode *m) {
     }
 
     // initialize all temporary register
-    for(int i = 0; i < 8; ++i) {
-        tempuse[i] = false;
-    }
+    clear_tempuse();
 
     // visit function
     if(m->function_node_list != nullptr) {
@@ -123,12 +132,10 @@ void codegen::visit(ProgramNode *m) {
         }
 
         // reset all temporary register
-        for(int i = 0; i < 8; ++i) {
-            tempuse[i] = false;
-        }
+        clear_tempuse();
     }
 
-    // gen main code
+    // generate main code
     fout << ".text\n"; 
     fout << "    .align 2\n"; 
     fout << "    .global main\n"; 
@@ -144,7 +151,7 @@ void codegen::visit(ProgramNode *m) {
         m->compound_statement_node->accept(*this);
     }
 
-    // gen main end code
+    // generate main end code
     fout << "    ld ra, 56(sp)\n";
     fout << "    ld s0, 48(sp)\n";
     fout << "    addi sp, sp, 64\n";
@@ -184,6 +191,8 @@ void codegen::visit(VariableNode *m) {
             tempuse[can_use_temp] = false;
             break;
         }
+
+        // for loop variable condition
         if(for_cond == 1 && tmp == m->variable_name) {
             (*cur_table->entries)[i]->stack_idx = curr_idx;
             curr_idx -= 4;

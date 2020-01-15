@@ -36,6 +36,7 @@ typedef struct __Expr {
     bool isVariable;
     bool isGlobal;
     int tmp_idx;
+    int stack_idx;
 } ExprCode;
 
 
@@ -47,7 +48,6 @@ bool tempuse[15];                                                       // check
 int curr_idx = -20;                                                     // know current stack index
 int expr_check = 0;                                                     // whether in stack or not
 int assign_check = 0;
-int local_idx = -1;
 int label_use = 1;
 int while_cond = 0, while_label = -1;
 int for_cond = 0, for_idx = 0;
@@ -357,7 +357,7 @@ void codegen::visit(CompoundStatementNode *m) {
 
 void codegen::visit(AssignmentNode *m) {
 
-    int use_idx = get_stack_idx(), local_idx_check = 0;
+    int use_idx = get_stack_idx();
     ExprCode* left_type = nullptr;
     ExprCode* right_type = nullptr;
 
@@ -372,9 +372,7 @@ void codegen::visit(AssignmentNode *m) {
     assign_check = 1;
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
-        local_idx_check = local_idx;
     }
-    local_idx = 0;
     assign_check = 0;
 
     // get type
@@ -383,7 +381,7 @@ void codegen::visit(AssignmentNode *m) {
 
     // gen assignment code
     if(left_type->isVariable == true) {
-        string idx = to_string(local_idx_check);
+        string idx = to_string(left_type->stack_idx);
         string reg_tmp = check_and_change(right_type->tmp_idx);
         fout << "    sw " + reg_tmp + ", " + idx + "(s0)\n";
     } else {
@@ -397,7 +395,7 @@ void codegen::visit(AssignmentNode *m) {
     if(for_cond == 0) {
         tempuse[use_idx] = false;
     } else {
-        for_idx = local_idx_check;
+        for_idx = left_type->stack_idx;
     }
 
     // free memory
@@ -433,7 +431,7 @@ void codegen::visit(PrintNode *m) {
         string reg_tmp = check_and_change(print_type->tmp_idx);
         fout << "    lw a0, 0(" + reg_tmp + ")\n";
     } else {
-        string idx = to_string(local_idx);
+        string idx = to_string(print_type->stack_idx);
         fout << "    lw a0, " + idx + "(s0)\n";
     }
 
@@ -466,7 +464,7 @@ void codegen::visit(ReadNode *m) {
         string reg_tmp = check_and_change(read_type->tmp_idx);
         fout << "    sw a0, 0(" + reg_tmp + ")\n";
     } else if(read_type->isVariable == true) {
-        string idx = to_string(local_idx);
+        string idx = to_string(read_type->stack_idx);
         fout << "    sw a0, " + idx + "(s0)\n";
     }
 
@@ -489,11 +487,11 @@ void codegen::visit(VariableReferenceNode *m) {
             if((*code_table_list[i]->entries)[j]->sym_kind != KIND_FUNC) {
                 if(m->variable_name == tmp) {
                     find = 1;
-                    local_idx = (*code_table_list[i]->entries)[j]->stack_idx;
                     variablerefernce_type = initexpr(false, false, false, true, false);
                     variablerefernce_type->tmp_idx = can_use_temp;
+                    variablerefernce_type->stack_idx = (*code_table_list[i]->entries)[j]->stack_idx;
                     if(expr_check == 1) {
-                        string idx = to_string(local_idx);
+                        string idx = to_string(variablerefernce_type->stack_idx);
                         string reg_tmp = check_and_change(can_use_temp);
                         fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
                     }
@@ -879,7 +877,7 @@ void codegen::visit(ReturnNode *m) {
         string reg_tmp = check_and_change(return_type->tmp_idx);
         fout << "    lw a0, 0(" + reg_tmp + ")\n";
     } else {
-        string idx = to_string(local_idx);
+        string idx = to_string(return_type->stack_idx);
         fout << "    lw a0, " + idx + "(s0)\n";
     }
 
@@ -903,7 +901,6 @@ void codegen::visit(FunctionCallNode *m) {
         for(uint i = 0; i < m->arguments->size(); ++i) {
             cnt++;
             (*(m->arguments))[i]->accept(*this);
-            int local_idx_check = local_idx;
             string reg_tmp = "", reg_idx = to_string(curr_idx);
             curr_idx -= 4;
             
@@ -931,10 +928,10 @@ void codegen::visit(FunctionCallNode *m) {
                     }
                     param_local_record.push_back(-1);
                 } else {
-                    string idx = to_string(local_idx_check);
+                    string idx = to_string(param_type->stack_idx);
                     fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
-                    reg_idx = to_string(local_idx_check);
-                    param_local_record.push_back(local_idx_check);
+                    reg_idx = to_string(param_type->stack_idx);
+                    param_local_record.push_back(param_type->stack_idx);
                     curr_idx += 4;
                 }
                 fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";

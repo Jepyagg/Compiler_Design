@@ -41,7 +41,6 @@ typedef struct __Expr {
 
 
 SymbolTableNode* cur_table = nullptr;                                   // point to current node symbol table
-SymbolTableNode* cur_func_table = nullptr;                              // if in func, point to func symbol table
 vector<SymbolTableNode*> code_table_list;                               // symbol table list
 ofstream fout;                                                          // open file
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
@@ -201,13 +200,12 @@ void codegen::visit(DeclarationNode *m) {
 void codegen::visit(VariableNode *m) {
 
     int cnt = expr_list.size(), get_type = 0;
+    ExprCode* const_type = nullptr;
 
     // visit constant value
     if (m->constant_value_node != nullptr) {
         m->constant_value_node->accept(*this);
     }
-
-    ExprCode* const_type = nullptr;
 
     if(expr_list.size() - cnt > 0) {
         const_type = expr_list.back();
@@ -260,7 +258,6 @@ void codegen::visit(FunctionNode *m) {
     // initialize function stack index
     int stack_index = -20;
     cur_table = m->symbol_table_node; // current table is function(first compound) table
-    cur_func_table = m->symbol_table_node; // point to function(first compound) table
 
     // generate text code and function prologue code
     fout << ".text\n"; 
@@ -287,8 +284,8 @@ void codegen::visit(FunctionNode *m) {
                 fout << "    sw a" + idx + ", " + stack_idx + "(s0)\n";
                 tmp_stack_index -= 4;
             } else {
-                int use_idx = get_stack_idx();
                 (*cur_table->entries)[i]->stack_idx = tmp_stack_index;
+                int use_idx = get_stack_idx();
                 string idx = check_and_change(use_idx);
                 string stack_idx = to_string(tmp_stack_index);
                 fout << "    sw " + idx + ", " + stack_idx + "(s0)\n";
@@ -384,6 +381,7 @@ void codegen::visit(AssignmentNode *m) {
         string idx = to_string(left_type->stack_idx);
         string reg_tmp = check_and_change(right_type->tmp_idx);
         fout << "    sw " + reg_tmp + ", " + idx + "(s0)\n";
+        tempuse[right_type->tmp_idx] = false;
     } else {
         string reg_tmp = check_and_change(right_type->tmp_idx);
         string reg_tmp2 = check_and_change(left_type->tmp_idx);
@@ -405,7 +403,6 @@ void codegen::visit(AssignmentNode *m) {
 
 void codegen::visit(PrintNode *m) {
 
-    // int use_idx = get_stack_idx();
     ExprCode* print_type = nullptr;
     
     // visit expression node
@@ -444,7 +441,6 @@ void codegen::visit(PrintNode *m) {
 
 void codegen::visit(ReadNode *m) {
 
-    // int use_idx = get_stack_idx();
     ExprCode* read_type = nullptr;
     
     // generate read code
@@ -509,14 +505,12 @@ void codegen::visit(VariableReferenceNode *m) {
         if((*code_table_list[0]->entries)[j]->sym_kind == KIND_VAR || (*code_table_list[0]->entries)[j]->sym_kind == KIND_CONST) {
             if(m->variable_name == tmp && find == 0) {
                 find = 1;
-
-                // generate variable reference code
+                variablerefernce_type = initexpr(false, false, false, false, true);
+                variablerefernce_type->tmp_idx = can_use_temp;
                 string reg_tmp = check_and_change(can_use_temp);
                 string reg_tmp2 = check_and_change(can_use_temp + 1);
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
-                variablerefernce_type = initexpr(false, false, false, false, true);
-                variablerefernce_type->tmp_idx = can_use_temp;
                 if(expr_check == 1) {
                     fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
                     fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
@@ -815,11 +809,11 @@ void codegen::visit(ForNode *m) {
     // visit second integer
     if (m->condition != nullptr) {
         m->condition->accept(*this);
-        fout << "    sw " + iter2 + ", " + const_idx + "(s0)\n";
+        condition_type = expr_list.back();
+        expr_list.pop_back();
+        string cond_reg = check_and_change(condition_type->tmp_idx);
+        fout << "    sw " + cond_reg + ", " + const_idx + "(s0)\n";
     }
-
-    condition_type = expr_list.back();
-    expr_list.pop_back();
 
     string forrr_idx = to_string(forvar_idx);
     fout << cond_label + ":\n";
@@ -920,11 +914,10 @@ void codegen::visit(FunctionCallNode *m) {
                 if(!param_type->isVariable) {
                     string reg_tmp2 = check_and_change(param_type->tmp_idx);
                     tempuse[param_type->tmp_idx] = false;
-                    if(param_type->isFunctionCall) {
-                        fout << "    sw " + reg_tmp2 + ", " + reg_idx + "(s0)\n";
-                        fout << "    lw " + reg_tmp + ", " + reg_idx + "(s0)\n";
-                    } else {
+                    if(param_type->isGlobal) {
                         fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+                    } else {
+                        fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
                     }
                     param_local_record.push_back(-1);
                 } else {

@@ -22,11 +22,22 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <vector>
 #include <cstdio>
 #include <cstdlib> // system()
 
 extern string file_name2;                                               // open file to write
 extern string output_dir;                                               // output directory
+
+typedef struct __Expr {
+    bool isFunctionCall;
+    bool isBinary_Unary;
+    bool isConst;
+    bool isVariable;
+    bool isGlobal;
+    int tmp_idx;
+} ExprCode;
+
 
 SymbolTableNode* cur_table = nullptr;                                   // point to current node symbol table
 SymbolTableNode* cur_func_table = nullptr;                              // if in func, point to func symbol table
@@ -35,15 +46,32 @@ ofstream fout;                                                          // open 
 bool tempuse[15];                                                       // check which tem can use t0~t6, s2~s11
 int curr_idx = -20;                                                     // know current stack index
 int expr_check = 0;                                                     // whether in stack or not
-int funccall_check = 0;
-int local_val = 0, assign_check = 0;
+int assign_check = 0;
 int local_idx = -1;
-int global_idx = -1;
 int label_use = 1;
 int while_cond = 0, while_label = -1;
 int for_cond = 0, for_idx = 0;
-int const_state = 0;
+vector<ExprCode*> expr_list;
 
+ExprCode* initexpr(bool func, bool binary_unary, bool const_val, bool var, bool globalvar) {
+    ExprCode* tmp = new ExprCode();
+    tmp->isFunctionCall = func;
+    tmp->isBinary_Unary = binary_unary;
+    tmp->isConst = const_val;
+    tmp->isVariable = var;
+    tmp->isGlobal = globalvar;
+    return tmp;
+}
+
+// free ExprCode function
+void deleteExpr(ExprCode* target) {
+    if(target != nullptr) {
+        delete target;
+        target = nullptr;
+    }
+}
+
+// get temporary register string
 string check_and_change(int idx) {
     if(idx > 6) {
         string tmp = "s" + to_string(idx - 5);
@@ -172,11 +200,19 @@ void codegen::visit(DeclarationNode *m) {
 
 void codegen::visit(VariableNode *m) {
 
-    int can_use_temp = get_stack_idx();
+    int cnt = expr_list.size(), get_type = 0;
 
     // visit constant value
     if (m->constant_value_node != nullptr) {
         m->constant_value_node->accept(*this);
+    }
+
+    ExprCode* const_type = nullptr;
+
+    if(expr_list.size() - cnt > 0) {
+        const_type = expr_list.back();
+        expr_list.pop_back();
+        get_type = 1;
     }
 
     // search table to find idx
@@ -186,9 +222,9 @@ void codegen::visit(VariableNode *m) {
             
             // store value to stack
             string stack_idx = to_string((*cur_table->entries)[i]->stack_idx);
-            string reg_tmp = check_and_change(can_use_temp);
+            string reg_tmp = check_and_change(const_type->tmp_idx);
             fout << "    sw " + reg_tmp + ", " + stack_idx + "(s0)\n";
-            tempuse[can_use_temp] = false;
+            tempuse[const_type->tmp_idx] = false;
             break;
         }
 
@@ -198,6 +234,11 @@ void codegen::visit(VariableNode *m) {
             curr_idx -= 4;
             break;
         }
+    }
+
+    // clear memory
+    if(get_type) {
+        deleteExpr(const_type);
     }
 }
 
@@ -209,8 +250,9 @@ void codegen::visit(ConstantValueNode *m) {
     string reg_tmp = check_and_change(can_use_temp);
     fout << "    li " + reg_tmp + ", " + intvalue + "\n";
     tempuse[can_use_temp] = true;
-    global_idx = can_use_temp;
-    const_state = 1;
+    ExprCode *const_info = initexpr(false, false, true, false, false);
+    const_info->tmp_idx = can_use_temp;
+    expr_list.push_back(const_info);
 }
 
 void codegen::visit(FunctionNode *m) {
@@ -315,68 +357,99 @@ void codegen::visit(CompoundStatementNode *m) {
 
 void codegen::visit(AssignmentNode *m) {
 
-    int use_idx = get_stack_idx(), local_check = 0, local_idx_check = 0;
+    int use_idx = get_stack_idx(), local_idx_check = 0;
+    ExprCode* left_type = nullptr;
+    ExprCode* right_type = nullptr;
 
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);  
     }
+
+    // get type
+    right_type = expr_list.back();
+    expr_list.pop_back();
+
     assign_check = 1;
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
         local_idx_check = local_idx;
-        local_check = local_val;
-        local_val = 0;
     }
     local_idx = 0;
     assign_check = 0;
 
+    // get type
+    left_type = expr_list.back();
+    expr_list.pop_back();
+
     // gen assignment code
-    if(local_check == 0) {
-        string reg_tmp = check_and_change(use_idx);
-        string reg_tmp2 = check_and_change(use_idx + 1);
-        fout << "    sw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
-        tempuse[use_idx] = false;
-        tempuse[use_idx + 1] = false;
-    } else {
+    if(left_type->isVariable == true) {
         string idx = to_string(local_idx_check);
-        string reg_tmp = check_and_change(use_idx);
+        string reg_tmp = check_and_change(right_type->tmp_idx);
         fout << "    sw " + reg_tmp + ", " + idx + "(s0)\n";
-        local_val = 0;
+    } else {
+        string reg_tmp = check_and_change(right_type->tmp_idx);
+        string reg_tmp2 = check_and_change(left_type->tmp_idx);
+        fout << "    sw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
+        tempuse[left_type->tmp_idx] = false;
+        tempuse[right_type->tmp_idx] = false;
     }
+
     if(for_cond == 0) {
         tempuse[use_idx] = false;
     } else {
         for_idx = local_idx_check;
     }
+
+    // free memory
+    deleteExpr(left_type);
+    deleteExpr(right_type);
 }
 
 void codegen::visit(PrintNode *m) {
 
-    int use_idx = get_stack_idx();
+    // int use_idx = get_stack_idx();
+    ExprCode* print_type = nullptr;
     
     // visit expression node
     if (m->expression_node != nullptr) {
         m->expression_node->accept(*this);
     }
+
+    // get type
+    print_type = expr_list.back();
+    expr_list.pop_back();
     
     // generate print code
-    int local_check = local_val, local_idx_check = local_idx;
-    if(local_check == 0) {
-        string reg_tmp = check_and_change(use_idx);
+    if(print_type->isFunctionCall == true) {
+        string reg_tmp = check_and_change(print_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(print_type->isBinary_Unary == true) {
+        string reg_tmp = check_and_change(print_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(print_type->isConst == true) {
+        string reg_tmp = check_and_change(print_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(print_type->isGlobal == true) {
+        string reg_tmp = check_and_change(print_type->tmp_idx);
         fout << "    lw a0, 0(" + reg_tmp + ")\n";
     } else {
-        string idx = to_string(local_idx_check);
+        string idx = to_string(local_idx);
         fout << "    lw a0, " + idx + "(s0)\n";
-        local_val = 0;
     }
+
     fout << "    jal ra, print\n";
-    tempuse[use_idx] = false;
+    tempuse[print_type->tmp_idx] = false;
+
+    // clear memory
+    deleteExpr(print_type);
 }
 
 void codegen::visit(ReadNode *m) {
 
+    // int use_idx = get_stack_idx();
+    ExprCode* read_type = nullptr;
+    
     // generate read code
-    int use_idx = get_stack_idx();
     fout << "    jal ra, read\n";
     
     // visit variable reference node
@@ -384,17 +457,22 @@ void codegen::visit(ReadNode *m) {
         m->variable_reference_node->accept(*this);
     }
 
+    // get type
+    read_type = expr_list.back();
+    expr_list.pop_back();
+
     // generate read code
-    int local_check = local_val, local_idx_check = local_idx;
-    if(local_check == 0) {
-        string reg_tmp = check_and_change(use_idx);
+    if(read_type->isGlobal == true) {
+        string reg_tmp = check_and_change(read_type->tmp_idx);
         fout << "    sw a0, 0(" + reg_tmp + ")\n";
-    } else {
-        string idx = to_string(local_idx_check);
+    } else if(read_type->isVariable == true) {
+        string idx = to_string(local_idx);
         fout << "    sw a0, " + idx + "(s0)\n";
-        local_val = 0;
     }
-    tempuse[use_idx] = false;
+
+    // clear information
+    tempuse[read_type->tmp_idx] = false;
+    deleteExpr(read_type);
 }
 
 void codegen::visit(VariableReferenceNode *m) {
@@ -402,6 +480,7 @@ void codegen::visit(VariableReferenceNode *m) {
     // search table list to check declare
     int can_use_temp = get_stack_idx();
     int find = 0;
+    ExprCode* variablerefernce_type = nullptr;
 
     // search local table
     for(int i = code_table_list.size() - 1; i > 0; --i) {
@@ -410,8 +489,9 @@ void codegen::visit(VariableReferenceNode *m) {
             if((*code_table_list[i]->entries)[j]->sym_kind != KIND_FUNC) {
                 if(m->variable_name == tmp) {
                     find = 1;
-                    local_val = 1;
                     local_idx = (*code_table_list[i]->entries)[j]->stack_idx;
+                    variablerefernce_type = initexpr(false, false, false, true, false);
+                    variablerefernce_type->tmp_idx = can_use_temp;
                     if(expr_check == 1) {
                         string idx = to_string(local_idx);
                         string reg_tmp = check_and_change(can_use_temp);
@@ -435,9 +515,10 @@ void codegen::visit(VariableReferenceNode *m) {
                 // generate variable reference code
                 string reg_tmp = check_and_change(can_use_temp);
                 string reg_tmp2 = check_and_change(can_use_temp + 1);
-                global_idx = can_use_temp;
                 tempuse[can_use_temp] = true;
                 fout << "    la " + reg_tmp + ", " + tmp + "\n";
+                variablerefernce_type = initexpr(false, false, false, false, true);
+                variablerefernce_type->tmp_idx = can_use_temp;
                 if(expr_check == 1) {
                     fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
                     fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
@@ -449,6 +530,9 @@ void codegen::visit(VariableReferenceNode *m) {
         }
     }
 
+    // push into list
+    expr_list.push_back(variablerefernce_type);
+    
     // not have array
     // if (m->expression_node_list != nullptr) {
     //     for(uint i = 0; i < m->expression_node_list->size(); ++i) {
@@ -461,6 +545,11 @@ void codegen::visit(BinaryOperatorNode *m) {
 
     int use_opd = 0, idx = get_stack_idx();
     string opt = "";
+    ExprCode* left_type = nullptr;
+    ExprCode* right_type = nullptr;
+    ExprCode* return_type = initexpr(false, true, false, false, false);
+    return_type->tmp_idx = idx;
+
     switch(m->op) {
         case OP_PLUS: use_opd = 1; opt = "+"; break;
         case OP_MINUS: use_opd = 1; opt = "-"; break;
@@ -477,7 +566,6 @@ void codegen::visit(BinaryOperatorNode *m) {
         case OP_NOT_EQUAL: use_opd = 4; opt = "<>"; break;
         default: break;
     }
-
     string left_idx = check_and_change(idx);
     string right_idx = check_and_change(idx + 1);
     string tmp_idx = check_and_change(idx + 2);
@@ -491,15 +579,21 @@ void codegen::visit(BinaryOperatorNode *m) {
     expr_check = 1;
     if (m->left_operand != nullptr) {
         m->left_operand->accept(*this);
-        local_val = 0;
     }
+
+    // get type
+    left_type = expr_list.back();
+    expr_list.pop_back();
 
     tempuse[idx] = true;
     expr_check = 1;
     if (m->right_operand != nullptr) {
         m->right_operand->accept(*this);
-        local_val = 0;
     }
+
+    // get type
+    right_type = expr_list.back();
+    expr_list.pop_back();
 
     if(opt == "+") {
         fout << "    addw " + command;
@@ -554,12 +648,23 @@ void codegen::visit(BinaryOperatorNode *m) {
     }
     tempuse[idx + 1] = false;
     expr_check = 0;
+
+    // push type into list
+    expr_list.push_back(return_type);
+
+    // clear memory
+    deleteExpr(left_type);
+    deleteExpr(right_type);
 }
 
 void codegen::visit(UnaryOperatorNode *m) {
 
     int idx = get_stack_idx();
     string opt = "";
+    ExprCode* unary_type = nullptr;
+    ExprCode* return_type = initexpr(false, true, false, false, false);
+    return_type->tmp_idx = idx;
+
     switch(m->op) {
         case OP_MINUS: opt += "-"; break;
         default: break;
@@ -574,19 +679,29 @@ void codegen::visit(UnaryOperatorNode *m) {
     if (m->operand != nullptr) {
         m->operand->accept(*this);
     }
+
+    unary_type = expr_list.back();
+    expr_list.pop_back();
     
     if(opt == "-") {
         fout << "    li " + zero_idx + ", 0\n";
         fout << "    subw " + tmp_idx + ", " + zero_idx + ", " + left_idx + "\n";
         fout << "    mv " + left_idx + ", " + tmp_idx + "\n";
-        local_val = 0;
     }
     expr_check = 0;
+
+    // push type into list
+    expr_list.push_back(return_type);
+
+    // free memory
+    deleteExpr(unary_type);
 }
 
 void codegen::visit(IfNode *m) {
 
     int use_idx = get_stack_idx(), true_label, false_label, finish_label;
+    ExprCode* condition_type = nullptr;
+
     true_label = label_use++;
     false_label = label_use;
     
@@ -594,6 +709,11 @@ void codegen::visit(IfNode *m) {
         m->condition->accept(*this);
         tempuse[use_idx] = false;
     }
+
+    // get type
+    condition_type = expr_list.back();
+    expr_list.pop_back();
+
     label_use++;
     finish_label = label_use++;
     string fin_label = "L" + to_string(finish_label);
@@ -616,11 +736,16 @@ void codegen::visit(IfNode *m) {
         }
     }
     fout << fin_label + ":\n";
+
+    // free memory
+    deleteExpr(condition_type);
 }
 
 void codegen::visit(WhileNode *m) {
 
     int use_idx = get_stack_idx(), condition_label, body_label;
+    ExprCode* condition_type = nullptr;
+
     body_label = label_use;
     condition_label = label_use + 1;
     string cond_label = "L" + to_string(condition_label);
@@ -646,6 +771,13 @@ void codegen::visit(WhileNode *m) {
         while_cond = 0;
         tempuse[use_idx] = false;
     }
+
+    // get type
+    condition_type = expr_list.back();
+    expr_list.pop_back();
+
+    // free memory
+    deleteExpr(condition_type);
 }
 
 void codegen::visit(ForNode *m) {
@@ -655,6 +787,8 @@ void codegen::visit(ForNode *m) {
     code_table_list.push_back(m->symbol_table_node);
 
     int use_idx = get_stack_idx(), condition_label, finish_label, forvar_idx = 0, constant_idx;
+    ExprCode* condition_type = nullptr;
+    
     condition_label = label_use++;
     finish_label = label_use++;
     string cond_label = "L" + to_string(condition_label);
@@ -686,6 +820,9 @@ void codegen::visit(ForNode *m) {
         fout << "    sw " + iter2 + ", " + const_idx + "(s0)\n";
     }
 
+    condition_type = expr_list.back();
+    expr_list.pop_back();
+
     string forrr_idx = to_string(forvar_idx);
     fout << cond_label + ":\n";
     fout << "    lw " + iter + ", " + forrr_idx + "(s0)\n";
@@ -709,34 +846,73 @@ void codegen::visit(ForNode *m) {
     tempuse[use_idx + 1] = false;
     tempuse[use_idx + 2] = false;
     curr_idx += 8;
+    
+    // pop information
     code_table_list.pop_back();
+
+    // free memroy
+    deleteExpr(condition_type);
 }
 
 void codegen::visit(ReturnNode *m) {
+
+    ExprCode* return_type = nullptr;
+
     if (m->return_value != nullptr) {
         m->return_value->accept(*this);
     }
-    string idx = to_string(local_idx);
-    fout << "    lw a0, " + idx + "(s0)\n";
-    local_val = 0;
+
+    // get type
+    return_type = expr_list.back();
+    expr_list.pop_back();
+
+    if(return_type->isFunctionCall == true) {
+        string reg_tmp = check_and_change(return_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(return_type->isBinary_Unary == true) {
+        string reg_tmp = check_and_change(return_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(return_type->isConst == true) {
+        string reg_tmp = check_and_change(return_type->tmp_idx);
+        fout << "    mv a0, " + reg_tmp + "\n";
+    } else if(return_type->isGlobal == true) {
+        string reg_tmp = check_and_change(return_type->tmp_idx);
+        fout << "    lw a0, 0(" + reg_tmp + ")\n";
+    } else {
+        string idx = to_string(local_idx);
+        fout << "    lw a0, " + idx + "(s0)\n";
+    }
+
+    // free memory
+    deleteExpr(return_type);
 }
 
 void codegen::visit(FunctionCallNode *m) {
 
     // gen function_call code
-    int use_idx = get_stack_idx(), tmp_expr = expr_check, cnt = 0;
+    int use_idx = get_stack_idx(), tmp_expr = expr_check, cnt = 0, param_cnt = -1;
+
     expr_check = 0;
     tempuse[use_idx] = true;
+    vector<int> param_local_record;
     if (m->arguments != nullptr) {
+        
+        // get param number
+        param_cnt = m->arguments->size();
+        
         for(uint i = 0; i < m->arguments->size(); ++i) {
             cnt++;
-            funccall_check = 0;
-            const_state = 0;
             (*(m->arguments))[i]->accept(*this);
-            int local_check = local_val, local_idx_check = local_idx;
+            int local_idx_check = local_idx;
             string reg_tmp = "", reg_idx = to_string(curr_idx);
             curr_idx -= 4;
-            if(const_state == 0) {
+            
+            // get type
+            ExprCode* param_type = expr_list.back();
+            expr_list.pop_back();
+            
+            // check
+            if(!param_type->isConst) {
                 if(i < 8) {
                     reg_tmp = "a" + to_string(i);
                 } else {
@@ -744,34 +920,45 @@ void codegen::visit(FunctionCallNode *m) {
                     reg_tmp = check_and_change(tmp_idx);
                     tempuse[tmp_idx] = true;
                 }
-                if(local_check == 0) {
-                    string reg_tmp2 = check_and_change(global_idx);
-                    tempuse[global_idx] = false;
-                    global_idx = -1;
-                    if(funccall_check == 1) {
+                if(!param_type->isVariable) {
+                    string reg_tmp2 = check_and_change(param_type->tmp_idx);
+                    tempuse[param_type->tmp_idx] = false;
+                    if(param_type->isFunctionCall) {
                         fout << "    sw " + reg_tmp2 + ", " + reg_idx + "(s0)\n";
                         fout << "    lw " + reg_tmp + ", " + reg_idx + "(s0)\n";
                     } else {
                         fout << "    lw " + reg_tmp + ", 0(" + reg_tmp2 + ")\n";
                     }
+                    param_local_record.push_back(-1);
                 } else {
                     string idx = to_string(local_idx_check);
                     fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
-                    local_val = 0;
+                    reg_idx = to_string(local_idx_check);
+                    param_local_record.push_back(local_idx_check);
+                    curr_idx += 4;
                 }
                 fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
             } else {
-                tempuse[global_idx] = false;
-                reg_tmp = check_and_change(global_idx);
+                tempuse[param_type->tmp_idx] = false;
+                reg_tmp = check_and_change(param_type->tmp_idx);
                 fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
+                param_local_record.push_back(-1);
             }
+
+            // free memory
+            deleteExpr(param_type);
         }
     }
 
     // store arguments to correct register
     for(int i = cnt - 1; i >= 0; --i) {
-        curr_idx += 4;
-        string idx = to_string(curr_idx);
+        string idx = "";
+        if(param_local_record[i] == -1){
+            curr_idx += 4;
+            idx = to_string(curr_idx);
+        } else {
+            idx = to_string(param_local_record[i]);
+        }
         string reg_tmp = "";
         if(i < 8) {
             reg_tmp = "a" + to_string(i);
@@ -782,11 +969,15 @@ void codegen::visit(FunctionCallNode *m) {
         fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
     }
 
+    // return funccall information
+    ExprCode* return_type = initexpr(true, false, false, false, false);
+    return_type->tmp_idx = use_idx;
+    expr_list.push_back(return_type);
+
     // store return value to correct register
     string reg_tmp = check_and_change(use_idx);
     fout << "    jal ra, " + m->function_name + "\n";
     fout << "    mv " + reg_tmp + ", a0\n";
-    global_idx = use_idx;
     expr_check = tmp_expr;
-    funccall_check = 1;
+    param_local_record.clear();
 }

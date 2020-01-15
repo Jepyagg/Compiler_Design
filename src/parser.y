@@ -602,8 +602,12 @@ int main(int argc, const char *argv[]) {
     }
 
     // code generation
-    codegen gen;
-    AST->accept(gen);
+    int codegen_check = 0;
+    if(error_find == 0) {
+        codegen_check = 1;
+        codegen gen;
+        AST->accept(gen);
+    }
 
     delete AST;
     fclose(fp);
@@ -614,7 +618,7 @@ int main(int argc, const char *argv[]) {
         free(arr_token[i]);
     }
 
-    if(error_find == 0) {
+    if(error_find == 0 && codegen_check == 0) {
         printf("\n"
                "|---------------------------------------------|\n"
                "|  There is no syntactic and semantic error!  |\n"

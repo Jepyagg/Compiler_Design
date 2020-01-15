@@ -366,11 +366,21 @@ void codegen::visit(AssignmentNode *m) {
     right_type = expr_list.back();
     expr_list.pop_back();
 
-    assign_check = 1;
+    if(right_type->isVariable == true) {
+        string idx = to_string(right_type->stack_idx);
+        string reg_tmp = check_and_change(use_idx);
+        fout << "    lw " + reg_tmp + ", " + idx + "(s0)\n";
+        tempuse[use_idx] = true;
+    } else if(right_type->isGlobal == true) {
+        string reg_tmp = check_and_change(right_type->tmp_idx);
+        string reg_tmp2 = check_and_change(use_idx);
+        fout << "    lw " + reg_tmp2 + ", 0(" + reg_tmp + ")\n";
+        fout << "    mv " + reg_tmp + ", " + reg_tmp2 + "\n";
+    }
+
     if (m->variable_reference_node != nullptr) {
         m->variable_reference_node->accept(*this);
     }
-    assign_check = 0;
 
     // get type
     left_type = expr_list.back();
@@ -577,11 +587,21 @@ void codegen::visit(BinaryOperatorNode *m) {
     left_type = expr_list.back();
     expr_list.pop_back();
 
+    // store temporary register to stack
+    string reg_idx = to_string(curr_idx);
+    curr_idx -= 4; 
+    string reg_tmp = check_and_change(left_type->tmp_idx);
+    fout << "    sw " + reg_tmp + ", " + reg_idx + "(s0)\n";
+
     tempuse[idx] = true;
     expr_check = 1;
     if (m->right_operand != nullptr) {
         m->right_operand->accept(*this);
     }
+
+    // restore stack to temporary register
+    fout << "    lw " + left_idx + ", " + reg_idx + "(s0)\n";
+    curr_idx += 4; 
 
     // get type
     right_type = expr_list.back();

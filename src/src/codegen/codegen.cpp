@@ -168,10 +168,10 @@ void codegen::visit(ProgramNode *m) {
     fout << "    .global main\n"; 
     fout << "    .type main, @function\n"; 
     fout << "main:\n";
-    fout << "    addi sp, sp, -64\n";
-    fout << "    sd ra, 56(sp)\n";
-    fout << "    sd s0, 48(sp)\n";
-    fout << "    addi s0, sp, 64\n";
+    fout << "    addi sp, sp, -256\n";
+    fout << "    sd ra, 248(sp)\n";
+    fout << "    sd s0, 240(sp)\n";
+    fout << "    addi s0, sp, 256\n";
 
     // visit compound
     if (m->compound_statement_node != nullptr) {
@@ -179,9 +179,9 @@ void codegen::visit(ProgramNode *m) {
     }
 
     // generate main end code
-    fout << "    ld ra, 56(sp)\n";
-    fout << "    ld s0, 48(sp)\n";
-    fout << "    addi sp, sp, 64\n";
+    fout << "    ld ra, 248(sp)\n";
+    fout << "    ld s0, 240(sp)\n";
+    fout << "    addi sp, sp, 256\n";
     fout << "    jr ra\n";
     fout << "    .size main, .-main\n";
     fout.close();
@@ -265,10 +265,10 @@ void codegen::visit(FunctionNode *m) {
     fout << "    .global " + m->function_name + "\n"; 
     fout << "    .type " + m->function_name + ", @function\n"; 
     fout << m->function_name + ":\n";
-    fout << "    addi sp, sp, -64\n";
-    fout << "    sd ra, 56(sp)\n";
-    fout << "    sd s0, 48(sp)\n";
-    fout << "    addi s0, sp, 64\n";
+    fout << "    addi sp, sp, -256\n";
+    fout << "    sd ra, 248(sp)\n";
+    fout << "    sd s0, 240(sp)\n";
+    fout << "    addi s0, sp, 256\n";
     
     // search table to find parameters
     int tmp_stack_index = stack_index;
@@ -310,9 +310,9 @@ void codegen::visit(FunctionNode *m) {
     }
 
     // gen function epilogue code
-    fout << "    ld ra, 56(sp)\n";
-    fout << "    ld s0, 48(sp)\n";
-    fout << "    addi sp, sp, 64\n";
+    fout << "    ld ra, 248(sp)\n";
+    fout << "    ld s0, 240(sp)\n";
+    fout << "    addi sp, sp, 256\n";
     fout << "    jr ra\n";
     fout << "    .size " + m->function_name + ", .-" + m->function_name + "\n";
 }

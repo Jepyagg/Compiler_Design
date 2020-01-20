@@ -26,7 +26,7 @@ char buf[MAX_LINE_LENG];
 
 
 digit [0-9]
-letter [a-zA-Z_]
+letter [a-zA-Z]
 float (0|[1-9][0-9]*)\.(0|[0-9]*[1-9])
 
 %x C_COMMENT

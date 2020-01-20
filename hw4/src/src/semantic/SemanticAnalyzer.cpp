@@ -244,7 +244,7 @@ void SemanticAnalyzer::visit(VariableNode *m) {
         for(uint j = 0; j < m->type->array_range.size(); ++j) {
             uint arr_start = m->type->array_range[j].start;
             uint arr_end = m->type->array_range[j].end;
-            if(arr_start > arr_end) {
+            if(arr_start >= arr_end) {
                 std::cerr << "<Error> Found in line " << m->line_number << ", column " << m->col_number << ": '" << name_len_check;
                 std::cerr << "' declared as an array with a lower bound greater or equal to upper bound\n";
                 std::cerr << "    " << arr_token[m->line_number] << '\n';
@@ -1171,7 +1171,7 @@ void SemanticAnalyzer::visit(FunctionCallNode *m) {
         space_arrow(m->col_number);
 
         // free memory
-        for(uint i = 0; i < param_cnt; ++i) {
+        for(uint i = 0; i < param_cnt2; ++i) {
             VariableInfo* tmp = type_list.back();
             type_list.pop_back();
             delete_info(tmp);

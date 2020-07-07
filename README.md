@@ -2,6 +2,8 @@
 
 ### Introduction to Compiler Design by Prof. Yi-Ping You, fall 2019
 
+### 編譯器設計概論, 老師: 游逸平, 108上學期
+
 ### 作業中的 spec 皆由助教所寫，感謝他們的貢獻。
 
 ### Grade:
